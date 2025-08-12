@@ -57,6 +57,7 @@
     .sidebar { grid-column: 1; grid-row: 1; position: sticky; top: 140px; align-self: start; max-height: calc(100dvh - 180px); overflow: auto; background: var(--panel); border:1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
     .side-section + .side-section { border-top:1px dashed var(--border); margin-top: 10px; padding-top: 10px; }
     .side-title { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--brand-orange); margin: 4px 0 8px; }
+    .side-subtitle { font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--muted); margin: 6px 0; }
     .side-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
     .side-list a { display:block; padding:8px 10px; border-radius: 10px; border:1px solid transparent; }
     .side-list a:hover { background: rgba(74, 147, 195, .08); border-color: var(--border); }
@@ -150,8 +151,8 @@
         a: `
           <h3>Czas i miejsce</h3>
           <p>Spotkania odbywają się około 17:00, by studenci zaoczni również mogli uczestniczyć. Zbieramy się w sali 319C na Towarowej 53 - to ten starszy żółty budynek obok przystanku. Przez pierwsze 15 minut czekamy na wszystkich, robimy kawę, herbatę, kroimy ciacho.</p>
-          <p><strong>Wpadaj śmiało!</strong><br>
-          Jeśli trafisz na nas w połowie semestru… sesteśmy otwarci na nowe osoby przez okrągły rok akademicki. Przyjdź i się niczym nie przejmuj. Pewnie będziemy chcieli Cię poznać, ale zero stresu! Wszyscy są mile widziani, a skoro spędzamy razem czas to fajnie dowiedzieć się jak masz na imię, co Cię interesuje, albo jak udało Ci się do nas trafić.</p>
+          <h3>Wpadaj śmiało!</h3>
+          <p>Jeśli trafisz na nas w połowie semestru… sesteśmy otwarci na nowe osoby przez okrągły rok akademicki. Przyjdź i się niczym nie przejmuj. Pewnie będziemy chcieli Cię poznać, ale zero stresu! Wszyscy są mile widziani, a skoro spędzamy razem czas to fajnie dowiedzieć się jak masz na imię, co Cię interesuje, albo jak udało Ci się do nas trafić.</p>
           <p><em>Czytaj dalej:</em> <a href="#czy-musze-nalezec-do-kola">Czy muszę należeć do koła?</a></p>
 
           <h3>Tematy spotkań</h3>
@@ -219,18 +220,30 @@
     ]
   },
 
-  { section: "O projekcie", items: [
-      { id: "cel", q: "Jaki jest cel Intersophii?", a: "Intersophia to studenckie koło poświęcone socjologii i filozofii. Tworzymy miejsce do wspólnego uczenia się, badań i dyskusji, łącząc rygor akademicki z otwartą wymianą praktycznych doświadczeń." },
-      { id: "dzialania", q: "Jakie działania prowadzimy?", a: "Organizujemy seminaria czytelnicze, spotkania z praktykami, warsztaty badawcze oraz projekty popularyzujące naukę. Publikujemy notatki i mini-przewodniki w otwartym dostępie." }
-  ]},
-  { section: "Członkostwo", items: [
-      { id: "dolaczenie", q: "Jak dołączyć?", a: "Wystarczy wypełnić krótki formularz zgłoszeniowy i odwiedzić jedno z otwartych spotkań. Nie wymagamy wcześniejszego doświadczenia – liczy się ciekawość i gotowość do współpracy." },
-      { id: "czas", q: "Ile czasu trzeba poświęcić?", a: "Średnio 2–4 h tygodniowo. Zachęcamy do pracy w małych zespołach nad krótkimi, wyraźnie zdefiniowanymi zadaniami." }
-  ]},
-  { section: "Wydarzenia", items: [
-      { id: "kalendarz", q: "Gdzie znajdę kalendarz wydarzeń?", a: "Aktualny harmonogram publikujemy w zakładce \"Wydarzenia\" i na naszym profilu. Możesz też zasubskrybować kanał iCal, aby mieć wydarzenia w swoim kalendarzu." },
-      { id: "prelekcje", q: "Czy mogę zaproponować prelekcję?", a: "Tak. Krótko opisz temat, tezę przewodnią i proponowany format (seminarium, warsztat, debata). Zgłoszenia omawiamy co miesiąc." }
-  ]},
+  {
+    section: "Przynależność",
+    items: [
+      {
+        id: "jak-dziala-intersophia",
+        q: "Jak działa Intersophia?",
+        a: `
+          <p>Intersophia to studenckie koło naukowe (SKN), które z założenia jest formą organizacji studenckiej stworzoną przez studentów i dla studentów, po to by mogli się wzajemnie rozwijać w oparciu o wiedzę naukową. Trochę jak Stowarzyszenie, tylko że w ramach struktur uczelni.</p>
+
+          <h3>Motyw przewodni</h3>
+          <p>Każdy SKN zwykle ma jakiś tematyczny motyw przewodni — naszym jest filozofia i teoria społeczna, które z jednej strony otwierają nasze forum na tematy inne niż zarządzanie, ekonomia, czy finanse, ale też od nich nie uciekają, rzucając na nie trochę inne światło. Pewnie dlatego to właśnie u nas zaczęła tlić się iskierka ruchu Rethinking Economics — ale ciii! Nie chcemy zapeszać, bo zobaczymy jeszcze jak to wyjdzie w praniu.</p>
+
+          <h3>Charakter działalności</h3>
+          <p>Podstawą naszej działalności są spotkania oparte na dyskusji wokół tematów, które nas interesują. Oprócz tego jednak zdarzało nam się organizować seanse filmowe. W 2025 puściliśmy dwa teksty do studenckiego czasopisma Challenger. Zorganizowaliśmy wykład o pluralizmie w ekonomii, nawiązując przy tym współpracę z wydawnictwem Heterodox. We wrześniu część z nas jedzie na konferencję Regeneracja. W planach mamy też grupowy wyjazd do Muzeum Pieniądza w Warszawie.</p>
+          <p><em>Czytaj dalej:</em> <a href="#dolaczenie">Jak dołączyć do koła?</a></p>
+
+          <h3>Wsparcie uczelni</h3>
+          <p>Wszystko to nasze pomysły, wspierane przez opiekuna, który stara się jak potrafi, by chciało nam się chcieć, otwierając różne możliwości na uczelni lub poza nią, nie narzucając przy tym jak ma działać koło.</p>
+          <p><em>Czytaj dalej:</em> Kim jest i co robi opiekun?</p>
+        `
+      }
+    ]
+  },
+
   { section: "Kontakt", items: [
       { id: "mail", q: "Jak się z Wami skontaktować?", a: "Najlepiej mailowo: kontakt@intersophia.example (placeholder). Odpowiadamy zwykle w 2–3 dni robocze." }
   ]}
@@ -251,14 +264,14 @@
         // Sidebar
         const sideSec = document.createElement('div');
         sideSec.className = 'side-section';
-        sideSec.innerHTML = `<div class=\"side-title\">${section.section}</div>`;
+        sideSec.innerHTML = `<div class="side-title">${section.section}</div>`;
         const list = document.createElement('ul');
         list.className = 'side-list';
-        section.items.forEach(item => {
+        (section.items || []).forEach(item => {
+          const li = document.createElement('li');
           const link = document.createElement('a');
           link.href = `#${item.id}`;
           link.textContent = item.q;
-          const li = document.createElement('li');
           li.appendChild(link);
           list.appendChild(li);
         });
@@ -266,13 +279,12 @@
         sidebar.appendChild(sideSec);
 
         // Content
-        section.items.forEach(item => {
+        (section.items || []).forEach(item => {
           const div = document.createElement('article');
           div.className = 'question';
           div.id = item.id;
           div.innerHTML = `
             <h2>${item.q}</h2>
-            <div class=\"meta\">Sekcja: ${section.section}</div>
             <div class=\"answer\">${item.a}</div>
           `;
           content.appendChild(div);
@@ -305,22 +317,21 @@
         heading.textContent = section.section;
         acc.appendChild(heading);
 
-        section.items.forEach(item => {
-          const wrap = document.createElement('div');
-          wrap.className = 'acc-item';
-          wrap.innerHTML = `
-            <button class=\"acc-btn\" aria-expanded=\"false\" aria-controls=\"p-${item.id}\">
-              <span>${item.q}</span>
-              <span class=\"chev\">▾</span>
-            </button>
-            <div class=\"acc-panel\" id=\"p-${item.id}\" role=\"region\" aria-labelledby=\"q-${item.id}\">
-              <div style=\"padding-top:6px; color: var(--muted)\">Sekcja: ${section.section}</div>
-              <div class=\"acc-body\" style=\"padding-top:10px;\">${item.a}</div>
-            </div>
-          `;
-          acc.appendChild(wrap);
-        });
+        (section.items || []).forEach(item => {
+        const wrap = document.createElement('div');
+        wrap.className = 'acc-item';
+        wrap.innerHTML = `
+          <button class=\"acc-btn\" aria-expanded=\"false\" aria-controls=\"p-${item.id}\">
+            <span>${item.q}</span>
+            <span class=\"chev\">▾</span>
+          </button>
+          <div class=\"acc-panel\" id=\"p-${item.id}\" role=\"region\" aria-labelledby=\"q-${item.id}\">
+            <div class=\"acc-body\" style=\"padding-top:10px;\">${item.a}</div>
+          </div>
+        `;
+        acc.appendChild(wrap);
       });
+    });
 
       acc.addEventListener('click', (e)=>{
         const btn = e.target.closest('.acc-btn');
@@ -380,7 +391,7 @@
     // ===== SELF-TESTS (Console) =====
     (function runTests(){
       try {
-        const totalItems = FAQ.reduce((n,s)=> n + s.items.length, 0);
+        const totalItems = FAQ.reduce((n, s) => n + (s.items ? s.items.length : 0), 0);
         console.info('[TEST] FAQ items count:', totalItems);
         console.assert(totalItems > 0, 'FAQ should have at least one item');
 
@@ -391,6 +402,15 @@
         const accItems = document.querySelectorAll('#mobileAccordion .acc-item');
         console.info('[TEST] Rendered mobile accordion items:', accItems.length);
         console.assert(accItems.length === totalItems, 'All FAQ items should render in the mobile accordion');
+
+        // Sidebar link count == liczba itemów
+        const navLinks = document.querySelectorAll('#sidebar a').length;
+        console.assert(navLinks === totalItems, 'Sidebar links should equal total FAQ items');
+
+        // Unikalne ID
+        const ids = FAQ.flatMap(s => (s.items||[]).map(i => i.id));
+        const dupes = ids.filter((id, idx) => ids.indexOf(id) !== idx);
+        console.assert(dupes.length === 0, 'FAQ item IDs must be unique: ' + dupes.join(', '));
 
         console.log('%cSelf-tests passed', 'color: green;');
       } catch (e) {
