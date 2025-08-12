@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Intersophia – FAQ</title>
+  <meta name="description" content="Prosty landing page FAQ w stylu OneNote, responsywny i gotowy na GitHub Pages." />
+  <style>
+    :root {
+      --brand-orange: #D66C2C; /* CTA / brand */
+      --brand-blue: #4A93C3;   /* Linki / akcenty */
+      --white: #FFFFFF;
+      --black: #000000;
+      --light-gray: #EEEEEE;
+
+      --bg: var(--white);
+      --panel: var(--light-gray);
+      --text: var(--black);
+      --muted: #555;
+      --border: #ccc;
+      --shadow: 0 10px 30px rgba(0,0,0,.1);
+      --radius: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: var(--black);
+        --panel: #111318;
+        --text: var(--white);
+        --muted: #9aa4b2;
+        --border: #222631;
+        --shadow: 0 10px 30px rgba(0,0,0,.35);
+      }
+    }
+
+    html, body { height: 100%; margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: var(--bg); color: var(--text); }
+    a { color: inherit; text-decoration: none; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    html { color-scheme: light dark; scroll-behavior: smooth; }
+
+    /* ===== HEADER (banner logo) ===== */
+    header { position: sticky; top: 0; z-index: 50; background: var(--bg); }
+    .bar { display:flex; align-items:center; justify-content:center; padding: 0; border-bottom: 1px solid var(--border); }
+    .logo-banner { width: 100%; height: 120px; display:flex; align-items:center; justify-content:flex-start; padding-left: 24px; box-shadow: var(--shadow); }
+    .logo-banner img { max-height: 80%; height:auto; width:auto; display:block; }
+
+    /* ===== LAYOUT ===== */
+    .layout { display: grid; grid-template-columns: 320px 1fr; grid-auto-flow: dense; gap: 24px; }
+    .main { grid-column: 2; grid-row: 1; background: var(--panel); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .main-content { padding: 24px; }
+    .question { scroll-margin-top: 140px; }
+    .question h2 { margin: 0 0 8px 0; font-size: 22px; color: var(--brand-blue); }
+    .question .meta { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+    .question + .question { border-top:1px solid var(--border); padding-top: 24px; margin-top: 24px; }
+
+    /* Sidebar (right) */
+    .sidebar { grid-column: 1; grid-row: 1; position: sticky; top: 140px; align-self: start; max-height: calc(100dvh - 180px); overflow: auto; background: var(--panel); border:1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+    .side-section + .side-section { border-top:1px dashed var(--border); margin-top: 10px; padding-top: 10px; }
+    .side-title { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--brand-orange); margin: 4px 0 8px; }
+    .side-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+    .side-list a { display:block; padding:8px 10px; border-radius: 10px; border:1px solid transparent; }
+    .side-list a:hover { background: rgba(74, 147, 195, .08); border-color: var(--border); }
+    .side-list a.active { background: rgba(74,147,195,.16); }
+
+    /* ===== MOBILE (accordion-first) ===== */
+    .mobile { display:none; }
+    .accordion { background: var(--panel); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden; }
+    .acc-item + .acc-item { border-top:1px solid var(--border); }
+    .acc-btn { width:100%; text-align:left; padding:16px; background:none; border:none; color:var(--text); font-size:16px; display:flex; justify-content:space-between; align-items:center; }
+    .acc-btn .chev { transition: transform .2s ease; }
+    .acc-panel { max-height:0; overflow:hidden; transition: max-height .25s ease; padding: 0 16px; }
+    .acc-panel.open { padding-bottom: 16px; }
+
+    /* Ustawienie kotwic dla akordeonu, by po otwarciu panel ustawił się pod nagłówkiem */
+    .acc-item { scroll-margin-top: 140px; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 960px) {
+      .layout { display:none; }
+      .mobile { display:block; }
+      .logo-banner { height: 100px; justify-content:center; padding-left: 0; }
+      /* Większy offset dla nagłówka na mobile, by pytanie było widoczne od początku */
+      .accordion .acc-item { scroll-margin-top: 112px; }
+    }
+  
+    /* === Dark mode: biała strona + biały główny kontener === */
+    @media (prefers-color-scheme: dark) {
+      /* Tło całej strony i nagłówka pozostaje białe */
+      
+      
+
+      /* Główny kontener (treść) – białe tło i ciemny tekst */
+      .main {
+        /* Nadpisujemy lokalnie tokeny tylko w obrębie .main */
+        --panel: #ffffff;
+        --text: #000000;
+        --muted: #555555;
+        --border: #e5e7eb;
+
+        background: var(--panel);
+        color: var(--text);
+        border-color: var(--border);
+        box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      }
+
+      .main .question h2 { color: var(--brand-blue); }
+      .main .meta { color: var(--muted); }
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== HEADER with full-width banner logo (SVG) ===== -->
+  <header>
+    <div class="bar">
+      <div class="logo-banner">
+        <img src="assets/logo.svg" alt="Intersophia — logotyp" class="logo-img" loading="eager" decoding="async" />
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="container">
+    <!-- Desktop/tablet layout: content + right sidebar -->
+    <div class="layout" id="desktopLayout" aria-label="Widok szeroki">
+      <section class="main" id="content">
+        <div class="main-content" id="contentInner"></div>
+      </section>
+      <aside class="sidebar" id="sidebar" aria-label="Nawigacja po pytaniach"></aside>
+    </div>
+
+    <!-- Mobile layout: accordion list first -->
+    <section class="mobile" aria-label="Widok mobilny">
+      <div class="accordion" id="mobileAccordion"></div>
+    </section>
+  </main>
+
+  <footer class="container" style="opacity:.7; font-size:13px; padding:32px 24px;">
+    © <span id="year"></span> Intersophia. Hostowane na GitHub Pages. – <a href="#" id="toTop">Powrót na górę</a>
+  </footer>
+
+  <script>
+    // ===== DATA MODEL =====
+    const FAQ = [
+  {
+    section: "Spotkania",
+    items: [
+      {
+        id: "jak-wygladaja-spotkania",
+        q: "Jak wyglądają spotkania?",
+        a: `
+          <h3>Czas i miejsce</h3>
+          <p>Spotkania odbywają się około 17:00, by studenci zaoczni również mogli uczestniczyć. Zbieramy się w sali 319C na Towarowej 53 - to ten starszy żółty budynek obok przystanku. Przez pierwsze 15 minut czekamy na wszystkich, robimy kawę, herbatę, kroimy ciacho.</p>
+          <p><strong>Wpadaj śmiało!</strong><br>
+          Jeśli trafisz na nas w połowie semestru… sesteśmy otwarci na nowe osoby przez okrągły rok akademicki. Przyjdź i się niczym nie przejmuj. Pewnie będziemy chcieli Cię poznać, ale zero stresu! Wszyscy są mile widziani, a skoro spędzamy razem czas to fajnie dowiedzieć się jak masz na imię, co Cię interesuje, albo jak udało Ci się do nas trafić.</p>
+          <p><em>Czytaj dalej:</em> <a href="#czy-musze-nalezec-do-kola">Czy muszę należeć do koła?</a></p>
+
+          <h3>Tematy spotkań</h3>
+          <p>Spotkanie prawie zawsze ma temat przewodni, który ustalamy zawczasu. Zwykle staramy się przeczytać jakiś tekst by się zainspirować - to nie jest twarde wymaganie, możesz przyjść ot tak - lecz lepiej dyskutuje się w oparciu o coś, co daje do myślenia. Te lektury zawsze udostępniamy przez nasz Messenger, także staramy się, żeby próg uczestnictwa dla wszystkich był jak najniższy. Możesz się do niego podpiąć dołączając do naszej grupy: Szkiełkiem, okiem i sercem #Intersophia</p>
+          <p><em>Czytaj dalej:</em> Jak działa grupa na facebooku?</p>
+
+          <h3>Atmosfera w trakcie</h3>
+          <p>Spotkanie zwykle trwa od godziny do dwóch - zależy od naszych sił (czy opiekun przyniósł wypieki narzeczonej), ilu osobom udało się przygotować i na ile temat jest w stanie podtrzymać naszą ciekawość. Różnie bywa. To czas dla nas, więc staramy się go wykorzystać najpełniej jak się da , ale też nic na siłę - atmosfera jest swobodna, nie spinamy się.</p>
+          <p><em>Czytaj dalej:</em> <a href="#czy-warto-uczestniczyc">Czy warto uczestniczyć?</a></p>
+
+          <h3>Sami decydujemy</h3>
+          <p>W czasie spotkań inicjujemy też inne działania - wycieczki, seanse filmowe, wykłady gościnne. SKN to społeczność, ale też narzędzie, które pozwala osiągać różne cele, które sobie wymyślimy.</p>
+          <p><em>Czytaj dalej:</em> Jak działa Intersophia?</p>
+        `
+      },
+      {
+        id: "czy-musze-nalezec-do-kola",
+        q: "Czy muszę należeć do koła?",
+        a: `
+          <p>A gdzie tam! Staramy się tworzyć przyjazną społeczność otwartych umysłów, które uczestniczą, bo chcą, a nie bo muszą.</p>
+
+          <h3>Zaangażowanie to wybór</h3>
+          <p>Dlatego będzie zupełnie w porządku jeśli przyjdziesz, bo akurat zainteresuje Cię jakiś temat i nikt nie będzie miał do Ciebie pretensji jeśli nie wpadniesz w kolejnym tygodniu. Serio! A kiedy znów zainteresujesz się czymś dwa miesiące później… nie bój nic! Super będzie Cię znowu zobaczyć. Trzymamy się razem, bo jesteśmy społecznością, nie wersją demo życia w korporacji.</p>
+          <p><em>Czytaj dalej:</em> <a href="#czy-warto-uczestniczyc">Czy warto uczestniczyć?</a></p>
+
+          <h3>Członkostwo jedynie potwierdza przynależność</h3>
+          <p>Jeśli Ci się spodoba i będziesz chcieć poczuć, że nasze koło to też Twoje miejsce w pełnym tego słowa znaczeniu - możesz stać się jego integralną częścią poprzez członkostwo. Intersophia, jak każde inne Studenckie Koło Naukowe ma swoich członków, zarząd, (skromny) budżet i pole do działania na uczelni, żeby z pomocą opiekuna robić cokolwiek, co wydaje się dla was rozwojowe.</p>
+          <p><em>Czytaj dalej:</em> <a href="#dolaczenie">Jak dołączyć do koła?</a></p>
+        `
+      },
+      {
+        id: "jak-prowadzimy-dyskusje",
+        q: "Jak prowadzimy dyskusje?",
+        a: `
+          <p>Raczej swobodnie. Natomiast to, z czego jesteśmy szczególnie dumni to, fakt iż udało nam się zebrać grono bardzo różnych osób, często o sprzecznych poglądach, które jednak potrafią ze sobą rozmawiać i czerpać od siebie nawzajem. Udaje się, bo staramy się by nasze dyskusje miały trzy istotne cechy:</p>
+          <ul>
+            <li><strong>Merytoryka</strong> - staramy się rozmawiać o czymś. Nie trzeba być ekspertem, by zabrać do głos, ale warto umieć klarownie wyjaśnić swój punkt widzenia.</li>
+            <li><strong>Otwartość</strong> - nie boimy się sprzecznych punktów widzenia. To normalne, że się różnimy. To, co nie jest normalne to brak zdolności do rozmowy z tej przyczyny.</li>
+            <li><strong>Rozważność</strong> - słuchamy siebie nawzajem, szczególnie po to by nie skrzywdzić kogoś, kto myśli inaczej lub może być wrażliwy na jakimś punkcie.</li>
+          </ul>
+        `
+      },
+      {
+        id: "czy-warto-uczestniczyc",
+        q: "Czy warto uczestniczyć?",
+        a: `
+          <p>To zależy głównie od Ciebie. Okres studiów nie musi być tylko okresem zabawy (to też!), czy przygotowywania się na rynek pracy. To jedna z ostatnich okazji, gdzie brak skrępowania prozą dorosłego życia, pozwala szukać, eskplorować, eksperymentować i tak po ludzku stawać się ciekawym człowiekiem.</p>
+
+          <h3>Trzecie miejsce</h3>
+          <p>Nasze koło to takie "trzecie miejsce", gdzie możesz wziąć oddech, wyłączyć na chwilę pragmatyczne myślenie o pracy, czy karierze i otworzyć się na tę bardziej humanistyczną refleksję o naszym miejscu w świecie, o tym jak sobie ten świat układamy oraz z jakim skukiem.</p>
+          <p>Kiedy robimy to razem, wspólnie wybierając temat do dyskusji nijak nie przypomina to wykładu i nawet kiedy ktoś nie zgadza się z moim punktem widzenia to zawsze wychodzę ze spotkań bogatszy o sposoby myślenia inne niż mój własny oraz te wszystkie wątki, które nigdy nie przeszły mi przez myśl.</p>
+          <p><em>Czytaj dalej:</em> <a href="#jak-wygladaja-spotkania">Jak wyglądają spotkania?</a></p>
+
+          <h3>Rozwój osobisty</h3>
+          <p>Dlatego w praktyce gromadzimy osoby, dla których stymulacja intelektualna, wykraczająca poza banał i codzienną rutynę jest wartością samą w sobie.</p>
+          <p><em>Czytaj dalej:</em> <a href="#czy-musze-nalezec-do-kola">Czy muszę należeć do koła?</a> (spoiler… nie musisz!)</p>
+          <p>Przy okazji jednak uczymy się porządkować myśli, zabierać głos, przekonywać i być przekonywanym, bez animozji i przekrzykiwania się nawzajem. Ubogocamy siebie nawzajem i tworzymy schematy myślenia, które nigdy nie wiadomo, kiedy mogą okazać się przydatne. Uczymy się też organizować rzeczy, na których samym nam zależy. Mów co chcesz… w naszym słowniku to cenne!</p>
+          <p><em>Czytaj dalej:</em> <a href="#dolaczenie">Jak dołączyć do koła?</a></p>
+
+          <h3>Wymierne korzyści</h3>
+          <p>Jeśli udało Ci się dotrzeć do tego punktu, to znaczy, że wewnętrzna motywacja Ci nie obca, więc możemy też zdardzić, że nasz opiekun bardzo stara się nas wspierać w pisarstwie akademickim, które istotnie zwiększa szanse na zdobycie stypendium. Z kolei środki koła wydajemy na nasz własny rozwój, więc przez wsparcie finansowe, można złapać okazje, które byśmy ominęli gdybyśmy musieli je dźwignąć we własnym budżecie.</p>
+          <p><em>Czytaj dalej:</em> Jak działa Intersophia?</p>
+        `
+      }
+    ]
+  },
+
+  { section: "O projekcie", items: [
+      { id: "cel", q: "Jaki jest cel Intersophii?", a: "Intersophia to studenckie koło poświęcone socjologii i filozofii. Tworzymy miejsce do wspólnego uczenia się, badań i dyskusji, łącząc rygor akademicki z otwartą wymianą praktycznych doświadczeń." },
+      { id: "dzialania", q: "Jakie działania prowadzimy?", a: "Organizujemy seminaria czytelnicze, spotkania z praktykami, warsztaty badawcze oraz projekty popularyzujące naukę. Publikujemy notatki i mini-przewodniki w otwartym dostępie." }
+  ]},
+  { section: "Członkostwo", items: [
+      { id: "dolaczenie", q: "Jak dołączyć?", a: "Wystarczy wypełnić krótki formularz zgłoszeniowy i odwiedzić jedno z otwartych spotkań. Nie wymagamy wcześniejszego doświadczenia – liczy się ciekawość i gotowość do współpracy." },
+      { id: "czas", q: "Ile czasu trzeba poświęcić?", a: "Średnio 2–4 h tygodniowo. Zachęcamy do pracy w małych zespołach nad krótkimi, wyraźnie zdefiniowanymi zadaniami." }
+  ]},
+  { section: "Wydarzenia", items: [
+      { id: "kalendarz", q: "Gdzie znajdę kalendarz wydarzeń?", a: "Aktualny harmonogram publikujemy w zakładce \"Wydarzenia\" i na naszym profilu. Możesz też zasubskrybować kanał iCal, aby mieć wydarzenia w swoim kalendarzu." },
+      { id: "prelekcje", q: "Czy mogę zaproponować prelekcję?", a: "Tak. Krótko opisz temat, tezę przewodnią i proponowany format (seminarium, warsztat, debata). Zgłoszenia omawiamy co miesiąc." }
+  ]},
+  { section: "Kontakt", items: [
+      { id: "mail", q: "Jak się z Wami skontaktować?", a: "Najlepiej mailowo: kontakt@intersophia.example (placeholder). Odpowiadamy zwykle w 2–3 dni robocze." }
+  ]}
+];
+
+    // ===== HELPERS =====
+    const $ = (id) => document.getElementById(id);
+    $('year').textContent = new Date().getFullYear();
+
+    // ===== RENDER DESKTOP =====
+    function renderDesktop(){
+      const content = $('contentInner');
+      const sidebar = $('sidebar');
+      content.innerHTML = '';
+      sidebar.innerHTML = '';
+
+      FAQ.forEach(section => {
+        // Sidebar
+        const sideSec = document.createElement('div');
+        sideSec.className = 'side-section';
+        sideSec.innerHTML = `<div class=\"side-title\">${section.section}</div>`;
+        const list = document.createElement('ul');
+        list.className = 'side-list';
+        section.items.forEach(item => {
+          const link = document.createElement('a');
+          link.href = `#${item.id}`;
+          link.textContent = item.q;
+          const li = document.createElement('li');
+          li.appendChild(link);
+          list.appendChild(li);
+        });
+        sideSec.appendChild(list);
+        sidebar.appendChild(sideSec);
+
+        // Content
+        section.items.forEach(item => {
+          const div = document.createElement('article');
+          div.className = 'question';
+          div.id = item.id;
+          div.innerHTML = `
+            <h2>${item.q}</h2>
+            <div class=\"meta\">Sekcja: ${section.section}</div>
+            <div class=\"answer\">${item.a}</div>
+          `;
+          content.appendChild(div);
+        });
+      });
+
+      // Active link highlight
+      const links = sidebar.querySelectorAll('a');
+      const map = Array.from(links).map(a => ({ link:a, target: $(a.getAttribute('href').slice(1)) }));
+      const obs = new IntersectionObserver((entries)=>{
+        entries.forEach(entry => {
+          const found = map.find(m => m.target === entry.target);
+          if(found && entry.isIntersecting) {
+            map.forEach(m => m.link.classList.remove('active'));
+            found.link.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-40% 0px -55% 0px', threshold: 0.01 });
+      map.forEach(m => m && m.target && obs.observe(m.target));
+    }
+
+    // ===== RENDER MOBILE =====
+    function renderMobile(){
+      const acc = $('mobileAccordion');
+      acc.innerHTML = '';
+      FAQ.forEach(section => {
+        const heading = document.createElement('div');
+        heading.className = 'side-title';
+        heading.style.margin = '10px 12px';
+        heading.textContent = section.section;
+        acc.appendChild(heading);
+
+        section.items.forEach(item => {
+          const wrap = document.createElement('div');
+          wrap.className = 'acc-item';
+          wrap.innerHTML = `
+            <button class=\"acc-btn\" aria-expanded=\"false\" aria-controls=\"p-${item.id}\">
+              <span>${item.q}</span>
+              <span class=\"chev\">▾</span>
+            </button>
+            <div class=\"acc-panel\" id=\"p-${item.id}\" role=\"region\" aria-labelledby=\"q-${item.id}\">
+              <div style=\"padding-top:6px; color: var(--muted)\">Sekcja: ${section.section}</div>
+              <div class=\"acc-body\" style=\"padding-top:10px;\">${item.a}</div>
+            </div>
+          `;
+          acc.appendChild(wrap);
+        });
+      });
+
+      acc.addEventListener('click', (e)=>{
+        const btn = e.target.closest('.acc-btn');
+        if(!btn) return;
+        const item = btn.parentElement;
+        const panel = item.querySelector('.acc-panel');
+        const chev = btn.querySelector('.chev');
+        const open = panel.style.maxHeight && panel.style.maxHeight !== '0px';
+        if(open){
+          panel.style.maxHeight = '0px';
+          panel.classList.remove('open');
+          btn.setAttribute('aria-expanded','false');
+          chev.style.transform = 'rotate(0deg)';
+        } else {
+          acc.querySelectorAll('.acc-panel').forEach(p => { p.style.maxHeight='0px'; p.classList.remove('open'); });
+          acc.querySelectorAll('.acc-btn').forEach(b => b.setAttribute('aria-expanded','false'));
+          acc.querySelectorAll('.chev').forEach(c => c.style.transform = 'rotate(0deg)');
+          panel.style.maxHeight = panel.scrollHeight + 'px';
+          panel.classList.add('open');
+          btn.setAttribute('aria-expanded','true');
+          chev.style.transform = 'rotate(180deg)';
+          
+          // Po rozwinięciu panelu przewiń do początku pytania (po zakończeniu animacji)
+          const scrollNow = () => item.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const onEnd = (ev) => { if (ev.target !== panel) return; scrollNow(); };
+          panel.addEventListener('transitionend', onEnd, { once: true });
+          // Fallback: przewiń po dwóch klatkach, gdyby transitionend nie zadziałał
+          requestAnimationFrame(() => requestAnimationFrame(scrollNow));
+        }
+      });
+    }
+
+    // ===== SCROLL TO TOP =====
+    document.addEventListener('click', (e)=>{
+      const a = e.target.closest('#toTop');
+      if(!a) return; e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Przewijanie z wyrównaniem do początku artykułu (kompensacja przez scroll-margin-top)
+    (function setupSidebarTopAlign() {
+      const sidebar = document.getElementById('sidebar');
+      if (!sidebar) return;
+      sidebar.addEventListener('click', (e) => {
+        const link = e.target.closest('a[href^="#"]');
+        if (!link) return;
+        e.preventDefault();
+        const id = link.getAttribute('href').slice(1);
+        const target = document.getElementById(id);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    })();
+
+    // ===== INIT =====
+    renderDesktop();
+    renderMobile();
+
+    // ===== SELF-TESTS (Console) =====
+    (function runTests(){
+      try {
+        const totalItems = FAQ.reduce((n,s)=> n + s.items.length, 0);
+        console.info('[TEST] FAQ items count:', totalItems);
+        console.assert(totalItems > 0, 'FAQ should have at least one item');
+
+        const articles = document.querySelectorAll('.question');
+        console.info('[TEST] Rendered desktop articles:', articles.length);
+        console.assert(articles.length === totalItems, 'All FAQ items should render as articles in desktop view');
+
+        const accItems = document.querySelectorAll('#mobileAccordion .acc-item');
+        console.info('[TEST] Rendered mobile accordion items:', accItems.length);
+        console.assert(accItems.length === totalItems, 'All FAQ items should render in the mobile accordion');
+
+        console.log('%cSelf-tests passed', 'color: green;');
+      } catch (e) {
+        console.error('Self-tests failed:', e);
+      }
+    })();
+
+    // Keep accordion heights in sync on resize
+    window.addEventListener('resize', ()=>{
+      document.querySelectorAll('.acc-panel.open').forEach(p => { p.style.maxHeight = p.scrollHeight + 'px'; });
+    });
+  </script>
+</body>
+</html>
