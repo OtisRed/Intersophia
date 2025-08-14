@@ -35,6 +35,8 @@
       /* answer container (where `a` is rendered) */
       --answer-bg: #fbfdff; /* subtle tint */
       --answer-border: rgba(16,24,40,0.04);
+      /* answer text color (allows making answer text dark even when root --text is light) */
+      --answer-text: var(--text);
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -44,6 +46,10 @@
         --muted: #b0b8c1;
         --border: #222631;
         --shadow: 0 10px 30px rgba(0,0,0,.35);
+      }
+      /* make answer text dark for accordion (mobile) which lives outside .main */
+      .accordion {
+        --answer-text: #000000;
       }
       .question .meta, .side-subtitle {
         color: #b0b8c1;
@@ -94,7 +100,7 @@
       padding: 14px;
       border-radius: 10px;
       margin-top: 12px;
-      color: var(--text);
+      color: var(--answer-text);
       line-height: 1.5;
     }
 
@@ -104,7 +110,7 @@
       border: 1px solid var(--answer-border);
       border-radius: 10px;
       padding: 12px;
-      color: var(--text);
+      color: var(--answer-text);
       line-height: 1.5;
     }
 
@@ -193,6 +199,8 @@
         --question-bg: #fbfbfc;
         --answer-bg: #fffdfb;
         --answer-border: rgba(16,24,40,0.02);
+        /* ensure answers inside .main are readable (dark text on light answer bg) */
+        --answer-text: #000000;
       }
 
   .main .question h2 { color: var(--brand-orange); }
