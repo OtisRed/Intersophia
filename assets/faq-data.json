@@ -1,5 +1,25 @@
 [
   {
+    "section": "Pierwsze kroki",
+    "items": [
+      {
+        "id": "jak-sie-dowiec-o-spotkaniach",
+        "q": "Jak się dowiem o spotkaniach?",
+        "a": "Najczęściej informujemy o spotkaniach na grupie Messenger oraz przez ogłoszenia na stronie. Dołącz do grupy lub sprawdzaj sekcję 'Ogłoszenia', by być na bieżąco."
+      },
+      {
+        "id": "jak-moge-zlapac-kontakt",
+        "q": "Jak mogę złapać kontakt?",
+        "a": "Najłatwiej przez grupę Messenger, wiadomość do opiekuna koła lub formularz kontaktowy (jeśli jest dostępny). Podaj krótko kim jesteś i czego potrzebujesz."
+      },
+      {
+        "id": "gdzie-znajde-wiecej-informacji",
+        "q": "Gdzie znajdę więcej informacji?",
+        "a": "Więcej informacji znajdziesz w sekcjach FAQ (np. 'Spotkania', 'Członkostwo') oraz w kanałach grupy: Materiały do spotkań, Ogłoszenia i Intersophia."
+      }
+    ]
+  },
+  {
     "section": "Spotkania",
     "items": [
       {

@@ -1,0 +1,653 @@
+/* ========= STYLES.CSS (deduped) =========
+   Usunięto wszystkie dokładne duplikaty i pozostawiono pojedyncze,
+   skonsolidowane reguły: :root, .socials, .icon-btn, .acc-btn itd.
+*/
+
+/* ===== VARIABLES (force dark theme as default) =====
+   Usuwamy rozróżnienie light/dark — ustawiamy wartości z dotychczasowego
+   @media (prefers-color-scheme: dark) jako domyślne.
+*/
+:root{
+  --brand-orange: #D66C2C;
+  --brand-blue: #4A93C3;
+  --white: #FFFFFF;
+  --black: #000000;
+  --light-gray: #0b1724;
+
+  /* Page / theme tokens (dark as default) */
+  --page-bg: #000000;
+  --header-bg: #000000;
+  --social-bg: #253b4d;
+  --main-bg: #000000;
+
+  --bg: var(--page-bg);
+  --panel: #0b1724;
+
+  /* new: specific accordion background (lighter than panel) */
+  --accordion-bg: #000000;
+
+  --text: #e6eef8;
+  --muted: #9aa6b2;
+  --border: #1f2937;
+  --shadow: 0 10px 30px rgba(2,6,23,0.6);
+  --radius: 16;
+
+  --header-height: 160px;
+  --social-size: 92px;
+  --social-gap: 8px;
+
+  --content-bg: #071226;
+  --question-bg: #0b2130;
+  --answer-bg: #071925;
+  --answer-border: rgba(255,255,255,0.03);
+  --answer-text: var(--text);
+}
+
+/* responsive tokens */
+@media (max-width: 600px) { :root { --header-height: 140px; } }
+/* mobile token for --social-size removed here to avoid duplication;
+   final value is set in the main @media (max-width:960px) block below. */
+
+/* ===== BASE / LAYOUT ===== */
+html, body { height: 100%; margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: var(--bg); color: var(--text); }
+a { color: inherit; text-decoration: none; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 0 24px 32px; box-sizing: border-box; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-top: 32px;
+  min-height: clamp(520px, calc(100vh - var(--header-height) - 56px), 1200px);
+}
+
+.main {
+  background: var(--social-bg);
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+  border-radius: 12px;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.socials-desktop {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border: none;
+  margin: 0;
+}
+
+.main-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+}
+
+.main-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+}
+
+.question-display {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  scrollbar-gutter: stable both-edges;
+}
+
+.question-display > .question {
+  margin: 0;
+}
+
+.mobile-footer {
+  margin: 20px 0 0;
+  padding: 20px 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 20px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+  margin-left: 0px;
+  padding-top: 20px;
+  padding-right: 18px;
+  padding-bottom: 20px;
+  padding-left: 18px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+.question-header { margin-bottom: 16px; }
+.question-section {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.question-empty {
+  padding: 24px;
+  border-radius: 12px;
+  background: rgba(7,18,38,0.85);
+  border: 1px dashed rgba(255,255,255,0.12);
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ===== HEADER / LOGO BANNER ===== */
+header { position: static; width: 100%; background: var(--bg); }
+.bar { display:flex; align-items:center; justify-content:center; padding: 0; border-bottom: 1px solid var(--border); }
+
+.logo-banner {
+  width: 100%;
+  height: var(--header-height);
+  min-height: var(--header-height);
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  padding-left: 24px;
+  box-shadow: var(--shadow);
+  box-sizing: border-box;
+
+  /* make the banner background explicitly black */
+  background: var(--header-bg);
+}
+
+/* keep logo image sizing (no change) */
+.logo-banner img {
+  max-width: 90%;
+  max-height: calc(var(--header-height) - 40px);
+  height: auto;
+  width: auto;
+  display: block;
+  transition: max-width 0.3s, height 0.3s;
+}
+@media (max-width: 600px) { .logo-banner img { max-height: calc(var(--header-height) - 36px); } }
+
+/* ===== QUESTIONS / CARDS ===== */
+.question { 
+  /* reset scroll offset (start from clean state) */
+  scroll-margin-top: 0;
+  background: var(--question-bg); /* stays white */
+  border: 1px solid var(--border); 
+  border-radius: 12px; 
+  padding: 18px; 
+  box-shadow: 0 6px 18px rgba(16,24,40,0.06); 
+  margin: 18px 0; 
+}
+.question h2 { margin: 0 0 8px 0; font-size: 22px; color: var(--brand-orange); }
+.question .meta { color: #444; font-size: 14px; margin-bottom: 12px; }
+
+/* ANSWER container */
+.answer, .acc-body {
+  background: var(--answer-bg);
+  border: 1px solid var(--answer-border);
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-top: 12px;
+  color: var(--answer-text);
+  line-height: 1.5;
+}
+
+.accordion .acc-body {
+  background: #10263a;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 16px 18px;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.sidebar-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 18px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  scrollbar-gutter: stable both-edges;
+}
+
+.sidebar-footer {
+  padding: 16px 18px 20px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(7,18,38,0.92) 0%, rgba(7,18,38,0.98) 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-footer small {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.side-section + .side-section {
+  border-top: 1px dashed rgba(255,255,255,0.06);
+  padding-top: 18px;
+}
+
+.side-title {
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--brand-orange);
+  margin: 0 0 12px;
+}
+
+.side-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.side-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  min-height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+  text-align: left;
+}
+
+.side-link:hover {
+  background: rgba(214,108,44,0.18);
+  border-color: rgba(214,108,44,0.25);
+}
+
+.side-link.active,
+.side-link.is-active {
+  background: rgba(214,108,44,0.28);
+  color: var(--white);
+  border-color: rgba(214,108,44,0.35);
+}
+
+/* ===== ACCORDION / MOBILE ===== */
+.mobile { display: none; }
+.accordion { 
+  background: var(--accordion-bg); /* use dedicated accordion color */
+  border: none; 
+  border-radius: var(--radius); 
+  box-shadow: var(--shadow); 
+  /* do not change page scrolling by forcing clipping here */
+  overflow: visible;
+}
+.acc-item + .acc-item { border-top:1px solid var(--border); }
+
+/* leave space for sticky socials when items scroll into view */
+.acc-item { scroll-margin-top: calc(var(--social-size) + 32px); }
+
+.acc-btn {
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 17px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 3;
+  border-radius: 10px;
+  transform: translateZ(0);
+}
+.acc-btn.is-sticky {
+  position: sticky;
+  top: var(--accordion-sticky-top, 0px);
+  z-index: 6;
+  box-shadow: none;
+}
+.acc-btn .chev { transition: transform .2s ease; }
+
+.acc-panel {
+  margin-top: 8px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(.4,0,.2,1), opacity 0.4s cubic-bezier(.4,0,.2,1);
+  opacity: 0;
+  padding: 0;
+  scroll-margin-top: calc(var(--social-size) + 32px);
+}
+.acc-panel.open { opacity: 1; will-change: max-height; }
+
+/* ===== SOCIALS / ICONS (single definition) ===== */
+.socials {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  /* corrected margin and added bottom spacing so socials nie przylegają do accordion */
+  margin: 12px 0 0 0;
+  height: var(--social-size);
+  padding: 24px;
+
+  /* use the requested grey background */
+  background: var(--social-bg);
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+  border-radius: 12px;
+  box-sizing: border-box;
+
+  /* orange outline */
+  border: 4px solid var(--brand-orange);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--social-size) - 16px);
+  height: calc(var(--social-size) - 16px);
+  padding: 0;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  text-decoration: none;
+  transition: transform .06s, box-shadow .12s, background .12s;
+}
+/* keep icon aspect consistent: use 80% for both width and height */
+.icon-btn img, .icon-btn svg { width: 80%; height: 80%; object-fit: contain; display: block; }
+.icon-btn:focus { outline: none; box-shadow: 0 0 0 3px var(--brand-orange); z-index: 5; }
+.icon-btn:hover { background: rgba(0,0,0,0.03); }
+.icon-btn:active { transform: translateY(1px); }
+
+/* ---- active / "lit" states (visual highlight on click) ---- */
+.acc-btn,
+.side-link,
+.icon-btn {
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+
+/* accordion button highlighted */
+.acc-btn.is-active {
+  background: var(--brand-orange);
+  color: var(--white);
+  box-shadow: none;
+}
+.acc-btn.is-active .chev { color: var(--white); transform: rotate(180deg); }
+
+/* Full-element "lit" state (higher specificity) */
+.accordion .acc-btn.is-active,
+.accordion .acc-btn.is-active * {
+  background: var(--brand-orange) !important;
+  color: var(--white) !important;
+  box-shadow: none !important;
+}
+
+/* Ensure the chevron contrasts */
+.accordion .acc-btn.is-active .chev {
+  color: var(--white) !important;
+  transform: rotate(180deg) !important;
+}
+
+/* Sidebar links and icon buttons full-bg */
+#sidebar .side-link.is-active,
+#sidebar .side-link.active {
+  background: var(--brand-orange) !important;
+  color: var(--white) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10) !important;
+}
+
+.icon-btn.is-active,
+.icon-btn.is-active * {
+  background: var(--brand-orange) !important;
+  color: var(--white) !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12) !important;
+}
+
+.link-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  background: rgba(214,108,44,0.14);
+  color: var(--brand-orange);
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(214,108,44,0.2);
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.12s ease;
+}
+
+.link-top:hover { background: rgba(214,108,44,0.22); }
+.link-top:active { transform: translateY(1px); }
+
+.sidebar-content,
+.question-display {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(214,108,44,0.65) rgba(7,18,38,0.45);
+}
+
+.sidebar-content::-webkit-scrollbar,
+.question-display::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-content::-webkit-scrollbar-track,
+.question-display::-webkit-scrollbar-track {
+  background: rgba(7,18,38,0.45);
+  border-radius: 999px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb,
+.question-display::-webkit-scrollbar-thumb {
+  background: rgba(214,108,44,0.75);
+  border-radius: 999px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover,
+.question-display::-webkit-scrollbar-thumb:hover {
+  background: rgba(214,108,44,0.92);
+}
+
+.side-link:focus,
+.side-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(214,108,44,0.24);
+  border-color: rgba(214,108,44,0.28);
+}
+
+/* Remove browser focus outline from buttons/links we handle manually */
+.acc-btn,
+.acc-btn:focus,
+.acc-btn:focus-visible,
+.acc-btn:active,
+.icon-btn,
+.icon-btn:focus,
+.icon-btn:focus-visible,
+button:focus,
+a:focus {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* If any inner element (like <span>/.chev) had a border, ensure it doesn't show */
+.acc-btn * { border: none !important; box-shadow: none !important; }
+
+/* Optional: ensure focus-visible still usable for keyboard users later:
+   you can replace the above with a subtler rule instead of removing outlines entirely. */
+
+/* ===== RESPONSIVE (mobile) ===== */
+@media (max-width: 960px) {
+  /* toggle layouts */
+  .layout { display: none; }
+  .mobile { display: block; }
+
+  /* header/logo adjustments */
+  .logo-banner { justify-content: center; padding-left: 0; }
+
+  .main { padding: 18px; }
+
+  /* keep socials sticky per your exception */
+  .socials {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    margin: 0 0 10px 0;
+    width: 100%;
+    justify-content: space-around;
+    background: var(--social-bg);
+    box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+  }
+
+  /* accordion full-width inside container */
+  .accordion { width: 100%; margin: 10px 0 0 0; background: var(--accordion-bg); }
+  .accordion .side-title {
+    font-size: 17px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--brand-orange);
+    margin: 22px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .accordion .side-title::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(214,108,44,0.4) 0%, rgba(214,108,44,0) 100%);
+  }
+  .accordion .acc-item {
+    scroll-margin-top: calc(var(--social-size) + 18px);
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .accordion .acc-item:first-of-type,
+  .accordion .side-title + .acc-item {
+    border-top: none;
+  }
+  .accordion .acc-btn {
+    font-size: 16px;
+    line-height: 1.35;
+    padding: 12px 16px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .accordion .acc-btn span:first-child { flex: 1 1 auto; }
+  .accordion .acc-btn .chev { font-size: 1.1em; margin-left: 12px; }
+  .accordion .acc-body {
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .accordion .acc-body p,
+  .accordion .acc-body li { margin: 0; }
+  .accordion .acc-body ul { padding-left: 18px; }
+
+  /* slightly reduce main padding on narrow screens */
+  .main-content { padding: 0; }
+
+  .mobile-footer {
+    margin: 20px 0 0;
+    padding: 20px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mobile-footer small { color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; }
+  .mobile-footer .link-top { align-self: flex-start; background: rgba(214,108,44,0.18); }
+}
+
+/* ===== ACCESSIBILITY / FOCUS (CONSOLIDATED) =====
+   Jedna spójna sekcja obsługująca focus/keyboard visualy dla acc-btn i linków.
+*/
+.acc-btn:focus { outline: none; }
+
+.acc-btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--brand-orange);
+  border-radius: 10px;
+  z-index: 4;
+}
+
+.acc-btn.is-sticky:focus-visible {
+  border-radius: 10px;
+}
+
+/* we keep an internal visual ring for acc-btn that is toggled on focus-visible */
+.acc-btn::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 8px;
+  bottom: 8px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--brand-orange);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+  z-index: 0;
+}
+.acc-btn:focus-visible::after { opacity: 1; }
