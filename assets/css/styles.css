@@ -41,6 +41,10 @@
   --answer-bg: #071925;
   --answer-border: rgba(255,255,255,0.03);
   --answer-text: var(--text);
+
+  --card-gradient: linear-gradient(135deg, rgba(7,25,39,0.9) 0%, rgba(4,16,28,0.94) 100%);
+  --card-border: rgba(255,255,255,0.08);
+  --card-shadow: 0 16px 34px rgba(2,6,23,0.4);
 }
 
 /* responsive tokens */
@@ -64,6 +68,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .main {
+  display: flex;
   background: var(--social-bg);
   box-shadow: 0 6px 18px rgba(16,24,40,0.04);
   border-radius: 12px;
@@ -85,15 +90,6 @@ a { color: inherit; text-decoration: none; }
   z-index: 5;
   border: none;
   margin: 0;
-}
-
-.main-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  gap: 0;
 }
 
 .main-content {
@@ -216,10 +212,12 @@ header { position: static; width: 100%; background: var(--bg); }
 }
 
 .accordion .acc-body {
-  background: #10263a;
+  background: var(--card-gradient);
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--card-border);
   padding: 16px 18px;
+  box-shadow: 0 12px 28px rgba(2,6,23,0.38);
+  color: var(--text);
 }
 
 /* ===== SIDEBAR ===== */
@@ -381,14 +379,28 @@ header { position: static; width: 100%; background: var(--bg); }
   height: var(--social-size);
   padding: 24px;
 
-  /* use the requested grey background */
-  background: var(--social-bg);
-  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
-  border-radius: 12px;
+  background: var(--card-gradient);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
   box-sizing: border-box;
+}
 
-  /* orange outline */
-  border: 4px solid var(--brand-orange);
+.community-intro {
+  margin: 18px 0 24px;
+  padding: 18px 22px;
+  background: var(--card-gradient);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+
+.community-intro p {
+  margin: 0;
 }
 
 .icon-btn {
@@ -454,24 +466,6 @@ header { position: static; width: 100%; background: var(--bg); }
   color: var(--white) !important;
   box-shadow: 0 6px 18px rgba(0,0,0,0.12) !important;
 }
-
-.link-top {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  background: rgba(214,108,44,0.14);
-  color: var(--brand-orange);
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(214,108,44,0.2);
-  cursor: pointer;
-  transition: background 0.18s ease, transform 0.12s ease;
-}
-
-.link-top:hover { background: rgba(214,108,44,0.22); }
-.link-top:active { transform: translateY(1px); }
 
 .sidebar-content,
 .question-display {
@@ -548,12 +542,24 @@ a:focus {
     margin: 0 0 10px 0;
     width: 100%;
     justify-content: space-around;
-    background: var(--social-bg);
-    box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+    background: var(--card-gradient);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
   }
 
   /* accordion full-width inside container */
   .accordion { width: 100%; margin: 10px 0 0 0; background: var(--accordion-bg); }
+  .community-intro {
+    margin: 18px 0;
+    padding: 16px 18px;
+    font-size: 15px;
+    line-height: 1.6;
+    box-shadow: 0 12px 28px rgba(2,6,23,0.45);
+  }
+  .community-intro--mobile {
+    margin-top: 18px;
+  }
   .accordion .side-title {
     font-size: 17px;
     font-weight: 700;
@@ -597,11 +603,7 @@ a:focus {
     flex-direction: column;
     gap: 12px;
   }
-  .accordion .acc-body p,
-  .accordion .acc-body li { margin: 0; }
-  .accordion .acc-body ul { padding-left: 18px; }
 
-  /* slightly reduce main padding on narrow screens */
   .main-content { padding: 0; }
 
   .mobile-footer {
@@ -617,7 +619,6 @@ a:focus {
   }
 
   .mobile-footer small { color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; }
-  .mobile-footer .link-top { align-self: flex-start; background: rgba(214,108,44,0.18); }
 }
 
 /* ===== ACCESSIBILITY / FOCUS (CONSOLIDATED) =====
