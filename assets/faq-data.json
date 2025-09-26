@@ -1,61 +1,97 @@
 [
   {
-    "section": "Pierwsze kroki",
+    "section": "Kim jesteśmy?",
+    "hideHeading": true,
     "items": [
       {
-        "id": "jak-sie-dowiec-o-spotkaniach",
-        "q": "Jak się dowiem o spotkaniach?",
-        "a": "Najczęściej informujemy o spotkaniach na grupie Messenger oraz przez ogłoszenia na stronie. Dołącz do grupy lub sprawdzaj sekcję 'Ogłoszenia', by być na bieżąco."
-      },
-      {
-        "id": "jak-moge-zlapac-kontakt",
-        "q": "Jak mogę złapać kontakt?",
-        "a": "Najłatwiej przez grupę Messenger, wiadomość do opiekuna koła lub formularz kontaktowy (jeśli jest dostępny). Podaj krótko kim jesteś i czego potrzebujesz."
-      },
-      {
-        "id": "gdzie-znajde-wiecej-informacji",
-        "q": "Gdzie znajdę więcej informacji?",
-        "a": "Więcej informacji znajdziesz w sekcjach FAQ (np. 'Spotkania', 'Członkostwo') oraz w kanałach grupy: Materiały do spotkań, Ogłoszenia i Intersophia."
+        "id": "kim-jestesmy",
+        "q": "Kim jesteśmy?",
+        "a": "Intersophia to studenckie koło naukowe (SKN) – przestrzeń stworzona przez studentów dla studentów, by wspólnie rozwijać się poza salą wykładową. Naszym motywem przewodnim jest filozofia i teoria społeczna, które pozwalają nam spojrzeć na ekonomię i zarządzanie z zupełnie innej - bardziej krytycznej - perspektywy."
       }
     ]
   },
   {
-    "section": "Spotkania",
+    "section": "Wpadnij do nas",
     "items": [
       {
-        "id": "jak-wygladaja-spotkania",
-        "q": "Jak wyglądają spotkania?",
-        "a": "<h3>Czas i miejsce</h3><p>Spotkania odbywają się około 17:00, by studenci zaoczni również mogli uczestniczyć. Zbieramy się w sali 319C na Towarowej 53 - to ten starszy żółty budynek obok przystanku. Przez pierwsze 15 minut czekamy na wszystkich, robimy kawę, herbatę, kroimy ciacho.</p><h3>Wpadaj śmiało!</h3><p>Jeśli trafisz na nas w połowie semestru… jesteśmy otwarci na nowe osoby przez okrągły rok akademicki. Przyjdź i się niczym nie przejmuj. Pewnie będziemy chcieli Cię poznać, ale zero stresu! Wszyscy są mile widziani, a skoro spędzamy razem czas to fajnie dowiedzieć się jak masz na imię, co Cię interesuje, albo jak udało Ci się do nas trafić.</p><p><em>Czytaj dalej:</em> <a href=\"#czy-musze-nalezec-do-kola\">Czy muszę należeć do koła?</a></p><h3>Tematy spotkań</h3><p>Spotkanie prawie zawsze ma temat przewodni, który ustalamy zawczasu. Zwykle staramy się przeczytać jakiś tekst by się zainspirować - to nie jest twarde wymaganie, możesz przyjść ot tak - lecz lepiej dyskutuje się w oparciu o coś, co daje do myślenia. Te lektury zawsze udostępniamy przez nasz Messenger, także staramy się, żeby próg uczestnictwa dla wszystkich był jak najniższy. Możesz się do niego podpiąć dołączając do naszej grupy: Szkiełkiem, okiem i sercem #Intersophia</p><p><em>Czytaj dalej:</em> Jak działa grupa na facebooku?</p><h3>Atmosfera w trakcie</h3><p>Spotkanie zwykle trwa od godziny do dwóch - zależy od naszych sił (czy opiekun przyniósł wypieki narzeczonej), ilu osobom udało się przygotować i na ile temat jest w stanie podtrzymać naszą ciekawość. Różnie bywa. To czas dla nas, więc staramy się go wykorzystać najpełniej jak się da , ale też nic na siłę - atmosfera jest swobodna, nie spinamy się.</p><p><em>Czytaj dalej:</em> <a href=\"#czy-warto-uczestniczyc\">Czy warto uczestniczyć?</a></p><h3>Sami decydujemy</h3><p>W czasie spotkań inicjujemy też inne działania - wycieczki, seanse filmowe, wykłady gościnne. SKN to społeczność, ale też narzędzie, które pozwala osiągać różne cele, które sobie wymyślimy.</p><p><em>Czytaj dalej:</em> <a href=\"#jak-dziala-intersophia\">Jak działa Intersophia?</a></p>"
+        "id": "jaka-panuje-atmosfera",
+        "q": "Jaka panuje u Was atmosfera?",
+        "a": "Swobodna i nieformalna. To czas dla nas, więc wykorzystujemy go na maksa, ale bez zbędnej spiny. Cenimy sobie otwartą dyskusję i wzajemny szacunek. Jesteśmy społecznością, a nie wersją demo korporacji."
       },
       {
         "id": "czy-musze-nalezec-do-kola",
-        "q": "Czy muszę należeć do koła?",
-        "a": "<p>A gdzie tam! Staramy się tworzyć przyjazną społeczność otwartych umysłów, które uczestniczą, bo chcą, a nie bo muszą.</p><h3>Zaangażowanie to wybór</h3><p>Dlatego będzie zupełnie w porządku jeśli przyjdziesz, bo akurat zainteresuje Cię jakiś temat i nikt nie będzie miał do Ciebie pretensji jeśli nie wpadniesz w kolejnym tygodniu. Serio! A kiedy znów zainteresujesz się czymś dwa miesiące później… nie bój nic! Super będzie Cię znowu zobaczyć. Trzymamy się razem, bo jesteśmy społecznością, nie wersją demo życia w korporacji.</p><p><em>Czytaj dalej:</em> <a href=\"#czy-warto-uczestniczyc\">Czy warto uczestniczyć?</a></p><h3>Członkostwo jedynie potwierdza przynależność</h3><p>Jeśli Ci się spodoba i będziesz chcieć poczuć, że nasze koło to też Twoje miejsce w pełnym tego słowa znaczeniu - możesz stać się jego integralną częścią poprzez członkostwo. Intersophia, jak każde inne Studenckie Koło Naukowe ma swoich członków, zarząd, (skromny) budżet i pole do działania na uczelni, żeby z pomocą opiekuna robić cokolwiek, co wydaje się dla was rozwojowe.</p><p><em>Czytaj dalej:</em> <a href=\"#dolaczenie\">Jak dołączyć do koła?</a></p>"
+        "q": "Czy muszę należeć do koła, żeby przyjść?",
+        "a": "A gdzie tam! Możesz wpadać, kiedy tylko zainteresuje Cię temat. Uczestnictwo wynika z chęci, a nie z przymusu. Jeśli wrócisz po dwóch miesiącach, super będzie Cię znowu zobaczyć!"
       },
       {
-        "id": "jak-prowadzimy-dyskusje",
-        "q": "Jak prowadzimy dyskusje?",
-        "a": "<p>Raczej swobodnie. Natomiast to, z czego jesteśmy szczególnie dumni to, fakt iż udało nam się zebrać grono bardzo różnych osób, często o sprzecznych poglądach, które jednak potrafią ze sobą rozmawiać i czerpać od siebie nawzajem. Udaje się, bo staramy się by nasze dyskusje miały trzy istotne cechy:</p><ul><li><strong>Merytoryka</strong> - staramy się rozmawiać o czymś. Nie trzeba być ekspertem, by zabrać do głos, ale warto umieć klarownie wyjaśnić swój punkt widzenia.</li><li><strong>Otwartość</strong> - nie boimy się sprzecznych punktów widzenia. To normalne, że się różnimy. To, co nie jest normalne to brak zdolności do rozmowy z tej przyczyny.</li><li><strong>Rozważność</strong> - słuchamy siebie nawzajem, szczególnie po to by nie skrzywdzić kogoś, kto myśli inaczej lub może być wrażliwy na jakimś punkcie.</li></ul>"
-      },
-      {
-        "id": "czy-warto-uczestniczyc",
-        "q": "Czy warto uczestniczyć?",
-        "a": "<p>To zależy głównie od Ciebie. Okres studiów nie musi być tylko okresem zabawy (to też!), czy przygotowywania się na rynek pracy. To jedna z ostatnich okazji, gdzie brak skrępowania prozą dorosłego życia, pozwala szukać, eskplorować, eksperymentować i tak po ludzku stawać się ciekawym człowiekiem.</p><h3>Trzecie miejsce</h3><p>Nasze koło to takie \"trzecie miejsce\", gdzie możesz wziąć oddech, wyłączyć na chwilę pragmatyczne myślenie o pracy, czy karierze i otworzyć się na tę bardziej humanistyczną refleksję o naszym miejscu w świecie, o tym jak sobie ten świat układamy oraz z jakim skukiem.</p><p>Kiedy robimy to razem, wspólnie wybierając temat do dyskusji nijak nie przypomina to wykładu i nawet kiedy ktoś nie zgadza się z moim punktem widzenia to zawsze wychodzę ze spotkań bogatszy o sposoby myślenia inne niż mój własny oraz te wszystkie wątki, które nigdy nie przeszły mi przez myśl.</p><p><em>Czytaj dalej:</em> <a href=\"#jak-wygladaja-spotkania\">Jak wyglądają spotkania?</a></p><h3>Rozwój osobisty</h3><p>Dlatego w praktyce gromadzimy osoby, dla których stymulacja intelektualna, wykraczająca poza banał i codzienną rutynę jest wartością samą w sobie.</p><p><em>Czytaj dalej:</em> <a href=\"#czy-musze-nalezec-do-kola\">Czy muszę należeć do koła?</a> (spoiler… nie musisz!)</p><p>Przy okazji jednak uczymy się porządkować myśli, zabierać głos, przekonywać i być przekonywanym, bez animozji i przekrzykiwania się nawzajem. Ubogacamy siebie nawzajem i tworzymy schematy myślenia, które nigdy nie wiadomo, kiedy mogą okazać się przydatne. Uczymy się też organizować rzeczy, na których samym nam zależy. Mów co chcesz… w naszym słowniku to cenne!</p><p><em>Czytaj dalej:</em> <a href=\"#dolaczenie\">Jak dołączyć do koła?</a></p><h3>Wymierne korzyści</h3><p>Jeśli udało Ci się dotrzeć do tego punktu, to znaczy, że wewnętrzna motywacja Ci nie obca, więc możemy też zdardzić, że nasz opiekun bardzo stara się nas wspierać w pisarstwie akademickim, które istotnie zwiększa szanse na zdobycie stypendium. Z kolei środki koła wydajemy na nasz własny rozwój, więc przez wsparcie finansowe, można złapać okazje, które byśmy ominęli gdybyśmy musieli je dźwiągnąć we własnym budżecie.</p><p><em>Czytaj dalej:</em> Jak działa Intersophia?</p>"
+        "id": "jak-dowiem-sie-o-spotkaniu",
+        "q": "Jak się dowiem o najbliższym spotkaniu?",
+        "a": "Najczęściej informujemy o spotkaniach na naszej grupie na Messengerze oraz przez ogłoszenia na stronie. Dołącz do grupy, by być na bieżąco."
       }
     ]
   },
   {
-    "section": "Członkostwo",
+    "section": "Konkrety",
     "items": [
       {
-        "id": "jak-dziala-intersophia",
-        "q": "Jak działa Intersophia?",
-        "a": "<p>Intersophia to studenckie koło naukowe (SKN), które z założenia jest formą organizacji studenckiej stworzoną przez studentów i dla studentów, po to by mogli się wzajemnie rozwijać w oparciu o wiedzę naukową. Trochę jak Stowarzyszenie, tylko że w ramach struktur uczelni.</p><h3>Motyw przewodni</h3><p>Każdy SKN zwykle ma jakiś tematyczny motyw przewodni - naszym jest filozofia i teoria społeczna, które z jednej strony otwierają nasze forum na tematy inne niż zarządzanie, ekonomia, czy finanse, ale też od nich nie uciekają, rzucając na nie trochę inne światło. Pewnie dlatego to właśnie u nas zaczęła tlić się iskierka ruchu Rethinking Economics - ale ciii! Nie chcemy zapeszać, bo zobaczymy jeszcze jak to wyjdzie w praniu.</p><h3>Charakter działalności</h3><p>Podstawą naszej działalności są spotkania oparte na dyskusji wokół tematów, które nas interesują. Oprócz tego jednak zdarzało nam się organizować seanse filmowe. W 2025 puściliśmy dwa teksty do studenckiego czasopisma Challenger. Zorganizowaliśmy wykład o pluralizmie w ekonomii, nawiązując przy tym współpracę z wydawnictwem Heterodox. We wrześniu część z nas jedzie na konferencję Regeneracja. W  planach mamy też grupowy wyjazd do Muzeum Pieniądza w Warszawie.</p><p>Czytaj dalej: <a href=\"#dolaczenie\">Jak dołączyć do koła?</a></p><h3>Wsparcie uczelni</h3><p>Wszystko to nasze pomysły, wspierane przez opiekuna, który stara się jak potrafi, by chciało nam się chcieć, otwierając różne możliwości na uczelni lub poza nią, nie narzucając przy tym jak ma działać koło.</p><p>Czytaj dalej: <a href=\"#opiekun\">Kim jest i co robi opiekun?</a></p>"
+        "id": "kiedy-i-gdzie-sie-spotykacie",
+        "q": "Kiedy i gdzie się spotykacie?",
+        "a": "Spotkania odbywają się zazwyczaj około 17:00, aby mogli w nich uczestniczyć także studenci zaoczni. Naszą stałą miejscówką jest sala 319C na Towarowej 53 (starszy, żółty budynek przy przystanku). Zawsze mamy kwadrans akademicki na spóźnialskich, kawę, herbatę i coś słodkiego."
       },
       {
-        "id": "dolaczenie",
-        "q": "Jak dołączyć do koła?",
-        "a": "<p>Na maksa prosto. Jeśli przychodzisz na spotkania regularnie to pewnie dlatego, że sprawiają Ci jakąś frajdę. W którymś momencie też pewnie poczujesz się, przynajmniej trochę jak u siebie. Nie, że zupełny luz, ale orientujesz się, że znasz kilka osób po imieniu, możesz sobie przypomnieć o czym rozmawialiśmy tydzień temu i nie obawiasz się już zabrać głosu - a przynajmniej nie tak samo jak na pierwszym spotkaniu.</p><p>Czytaj dalej: <a href=\"#czy-warto-uczestniczyc\">Czy warto uczestniczyć?</a></p><h3>Formalne członkostwo</h3><p>Członkostwo następuje przez przyległość - jeśli Ci się spodoba atmosfera to wraz z regularną obecnością na spotkania, w którymś momencie po prostu poczujesz się częścią koła. Formalnie, członkiem możesz zostać zjawiając się na trzech kolejnych spotkaniach, natomiast jeśli nie wyjdzie Ci ciągiem, a będzie jasnym, że czujesz się swobodnie w naszym towarzystwie, to nikt Ci nie odmówi członkostwa.</p><p>Czytaj dalej: <a href=\"#jak-dziala-intersophia\">Jak działa Intersophia?</a></p>"
+        "id": "o-czym-rozmawiacie",
+        "q": "O czym rozmawiacie na spotkaniach?",
+        "a": "Każde spotkanie ma temat przewodni, który ustalamy wcześniej. Często inspirujemy się jakimś tekstem, filmem lub podcastem (to nie jest obowiązkowe!), żeby dyskusja była ciekawsza. Wszystkie materiały udostępniamy na naszej grupie na Messengerze."
+      },
+      {
+        "id": "jak-prowadzicie-dyskusje",
+        "q": "Jak prowadzicie dyskusje?",
+        "a": "Stawiamy na trzy filary: merytorykę (rozmawiamy o konkretach, ale nie musisz być ekspertem), otwartość (różnice w poglądach to dla nas wartość) i rozważność (słuchamy się nawzajem i dbamy o komfort rozmowy)."
+      },
+      {
+        "id": "co-robicie-oprocz-dyskusji",
+        "q": "Co robicie oprócz dyskusji?",
+        "a": "Koło to narzędzie do realizacji naszych pomysłów. Organizowaliśmy już seanse filmowe, wykłady gościnne, pisaliśmy teksty do czasopism naukowych, a w planach mamy wyjazd do Muzeum Pieniądza w Warszawie. Działamy aktywnie i jesteśmy otwarci na nowe inicjatywy."
+      }
+    ]
+  },
+  {
+    "section": "Motywacja",
+    "items": [
+      {
+        "id": "czy-warto-dolaczyc",
+        "q": "Czy warto dołączyć?",
+        "a": "Studia to idealny moment, by stać się po prostu ciekawym człowiekiem. Nasze koło to takie \"trzecie miejsce\" – przestrzeń na oddech od myślenia o karierze i okazja do humanistycznej refleksji. Wychodzisz bogatszy o nowe perspektywy i sposoby myślenia."
+      },
+      {
+        "id": "jak-moge-sie-rozwinac",
+        "q": "Jak mogę się rozwinąć?",
+        "a": "Uczymy się tu rzeczy, których nie ma w programie studiów: porządkowania myśli, argumentacji, publicznego zabierania głosu i przekonywania do swoich racji. Rozwijasz też umiejętności organizacji wydarzeń i pracy w zespole przy projektach, na których naprawdę Ci zależy."
+      },
+      {
+        "id": "a-bardziej-ekonomicznie",
+        "q": "A bardziej ekonomicznie?",
+        "a": "Tak. Dla osób z motywacją mamy konkretne wsparcie. Nasz opiekun pomaga w pisaniu tekstów akademickich, co realnie zwiększa szanse na stypendium. Dodatkowo, budżet koła przeznaczamy na nasz rozwój, finansując np. udział w konferencjach czy warsztatach."
+      }
+    ]
+  },
+  {
+    "section": "Przynależność",
+    "items": [
+      {
+        "id": "jak-formalnie-dolaczyc",
+        "q": "Jak formalnie dołączyć do koła?",
+        "a": "Na maksa prosto. Jeśli wpadasz regularnie i czujesz się częścią naszej społeczności, to w zasadzie już jesteś \"nasz\". Formalnie członkiem można zostać po pojawieniu się na trzech kolejnych spotkaniach, ale jesteśmy elastyczni. Liczy się zaangażowanie i dobra atmosfera."
+      },
+      {
+        "id": "czy-moge-dolaczyc-w-srodku-semestru",
+        "q": "Czy mogę dołączyć w środku semestru?",
+        "a": "Oczywiście! Jesteśmy otwarci na nowe osoby przez cały rok. Po prostu wpadnij. Na pewno będziemy chcieli Cię poznać, ale wszystko na luzie i bez stresu."
+      },
+      {
+        "id": "jak-zlapac-kontakt",
+        "q": "Jak mogę złapać z Wami kontakt?",
+        "a": "Najłatwiej przez grupę na Messengerze lub pisząc wiadomość do opiekuna koła."
       }
     ]
   },
@@ -63,19 +99,19 @@
     "section": "Organizacja",
     "items": [
       {
-        "id": "opiekun",
-        "q": "Kim jest i co robi opiekun?",
-        "a": "<p>Cześć! Nazywam się Krzysiek i jestem adiunktem w Katedrze Socjologii i Etyki Gospodarczej. Mogliśmy się poznać na zajęciach z socjologii. Opiekun pomaga organizować spotkania, wspiera w kontaktach z uczelnią i doradza przy realizacji projektów SKN.</p>"
+        "id": "jak-dziala-grupa-messenger",
+        "q": "Jak działa Wasza grupa na Facebooku/Messengerze?",
+        "a": "To nasze główne centrum komunikacji. Mamy tam kilka kanałów tematycznych: Ogłoszenia (info o spotkaniach), A to ciekawe! (luźna prasówka, memy), Materiały do spotkań (lektury do dyskusji), Intersophia (kanał organizacyjny) oraz Pisarstwo akademickie (wsparcie w pisaniu). Możesz dołączyć do tych, które Cię interesują."
       },
       {
-        "id": "facebook-grupa",
-        "q": "Jak działa grupa na facebooku?",
-        "a": "<p>Chcąc mieć jakąś platformę komunikacji zdecydowaliśmy się na Messenger, ale w formie grupy. Umożliwia ona łatwe tworzenie kanałów, ale też dołączanie, opuszczanie i wyciszanie tych, które może mniej Cię interesują, więc możesz łatwo dostosować je do swoich preferencji. Mamy kilka kanałów (w nagłówkach masz linki do każdego z nich), które tematycznie obejmują:</p><h3>Ogłoszenia</h3><p>To takie miejsce najmniejszego zobowiązania - głównie dla studentów Krzyśka lub dla szerszej społeczności sympatyków bez większego przywiązania. Staramy się tu zamieszczać newsy o co ciekawszych spotkaniach i różne przydatne informacje z uczelni, które inaczej mogłyby Cię ominąć.</p><h3>A to ciekawe!</h3><p>Ten kanał zaczął się jako forma prasówki. Raz żyje bardziej, raz mniej. Jego głównym celem jest zwrócenie uwagi na bieżące wydarzenia, czy osobiste odkrycia, którymi chcesz się podzielić. Nie stronimy też od żartów, memów, czy czegokolwiek, co może kogoś zainteresować lub rozbawić.</p><h3>Materiały do spotkań</h3><p>Do każdego spotkania staramy się dobierać jakąś lekturę, film lub wywiad, żeby poszerzyć horyzont i mieć lepszy punkt zaczepienia do dyskusji. Te materiały wrzucamy właśnie tu przed każdym spotkaniem.</p><h3>Intersophia</h3><p>Oficjalny kanał SKNu dla osób zainteresowanych działalnością koła. To tutaj wybieramy tematy kolejnych spotkań, przegadujemy inne pomysły i sprawy organizacyjne. Tu się dzieje, dlatego ten kanał jest dla Ciebie jeśli chcesz trzymać rękę na pulsie lub mieć wpływ na to, co się dzieje.</p><h3>Pisarstwo akademickie</h3><p>Jako SKN interesujemy się nie tylko tym co napisano, ale też jak możemy sami zaangażować się w prace naukowe, czy pisarstwo akademickie. Przetarliśmy już trochę szlaków w przygotowaniu publikacji do Challengera i członkowie koła mogą liczyć na opiekę Krzyśka w tym zakresie.</p>"
+        "id": "kim-jest-opiekun",
+        "q": "Kim jest i co robi opiekun koła?",
+        "a": "Cześć! Nazywam się Krzysiek i jestem adiunktem w Katedrze Socjologii i Etyki Gospodarczej. Pomagam organizować spotkania, wspieram w kontaktach z uczelnią i doradzam przy realizacji Waszych projektów."
       },
       {
-        "id": "wspolny-notes",
-        "q": "Jak działa wspólny notes?",
-        "a": "<p>Wspólny notes to narzędzie online, w którym członkowie koła mogą dzielić się notatkami, pomysłami i materiałami z dyskusji. Pozwala to na łatwy dostęp do wiedzy i wspólne tworzenie zasobów dla wszystkich zainteresowanych.</p>"
+        "id": "co-to-wspolny-notes",
+        "q": "Co to jest \"wspólny notes\"?",
+        "a": "To narzędzie online, w którym dzielimy się notatkami, pomysłami i materiałami z dyskusji. Dzięki niemu mamy łatwy dostęp do naszej wspólnej bazy wiedzy."
       }
     ]
   }
