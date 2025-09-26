@@ -15,6 +15,17 @@ const STICKY_CLASS = 'is-sticky';
 
 let stickyRefreshScheduled = false;
 
+function setPanelAccessibilityState(panel, isOpen) {
+  if (!panel) return;
+  panel.setAttribute('aria-hidden', String(!isOpen));
+  panel.dataset.open = isOpen ? 'true' : 'false';
+
+  const body = panel.querySelector('.acc-body');
+  if (body) {
+    body.setAttribute('tabindex', isOpen ? '0' : '-1');
+  }
+}
+
 async function loadFAQ() {
   const res = await fetch('assets/faq-data.json', { cache: 'no-store' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -112,7 +123,7 @@ function syncMobileAccordion(id, { scroll = false, focus = false } = {}) {
         if (isMobileLayout()) {
           enableAccordionButtonSticky(trigger);
           scheduleStickyRefresh();
-          ensurePanelBelowSticky(targetPanel, trigger);
+          applyPanelStickyClearance(trigger);
         } else {
           disableAccordionButtonSticky(trigger);
         }
@@ -161,46 +172,53 @@ function getMobileScrollOffset() {
   return Math.max(safeTop, 0);
 }
 
-function ensureElementBelowSocials(element) {
+function ensureElementBelowSocials(element, behavior = 'auto') {
   if (!element || !isMobileLayout()) return true;
 
   const safeTop = getMobileScrollOffset();
   const rect = element.getBoundingClientRect();
   const delta = rect.top - safeTop;
 
-  if (Math.abs(delta) <= 1) return true;
+  if (Math.abs(delta) <= 4) return true;
 
-  const target = Math.max(0, window.scrollY + rect.top - safeTop);
-  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const clampedTarget = Math.min(target, maxScroll);
-
-  window.scrollTo({ top: clampedTarget, behavior: 'auto' });
-  return false;
-}
-
-function ensurePanelBelowSticky(panel, button, attempt = 0) {
-  if (!panel || !button || !isMobileLayout()) return true;
-
-  const content = panel.querySelector('.acc-body') || panel;
-  if (!content) return true;
-
-  const buttonRect = button.getBoundingClientRect();
-  const contentRect = content.getBoundingClientRect();
-  const desiredTop = buttonRect.bottom + 8;
-
-  if (contentRect.top < desiredTop - 1) {
-    const target = Math.max(0, window.scrollY + contentRect.top - desiredTop);
+    const target = Math.max(0, window.scrollY + rect.top - safeTop);
     const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     const clampedTarget = Math.min(target, maxScroll);
-    window.scrollTo({ top: clampedTarget, behavior: 'auto' });
-  }
+    const scrollBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
+    window.scrollTo({ top: clampedTarget, behavior: scrollBehavior });
+    return false;
+}
 
-  if (attempt < 12) {
-    const delay = attempt < 6 ? 16 : 80;
-    setTimeout(() => ensurePanelBelowSticky(panel, button, attempt + 1), delay);
+function getAccordionPanel(button) {
+  if (!button) return null;
+  const panel = button.nextElementSibling;
+  if (panel && panel.classList && panel.classList.contains('acc-panel')) {
+    return panel;
   }
+  return null;
+}
 
-  return true;
+function applyPanelStickyClearance(button) {
+  const panel = getAccordionPanel(button);
+  if (!panel || !isMobileLayout()) return;
+
+  const rect = button.getBoundingClientRect();
+  const clearance = Math.ceil(rect.height + 14);
+  panel.style.setProperty('--accordion-sticky-clearance', `${clearance}px`);
+  panel.classList.add('has-sticky-clearance');
+  if (panel.classList.contains('open')) {
+    requestAnimationFrame(() => adjustPanelHeight(panel));
+  }
+}
+
+function clearPanelStickyClearance(button) {
+  const panel = getAccordionPanel(button);
+  if (!panel) return;
+  panel.classList.remove('has-sticky-clearance');
+  panel.style.removeProperty('--accordion-sticky-clearance');
+  if (panel.classList.contains('open')) {
+    requestAnimationFrame(() => adjustPanelHeight(panel));
+  }
 }
 
 function enableAccordionButtonSticky(button) {
@@ -213,12 +231,14 @@ function enableAccordionButtonSticky(button) {
   const offset = getMobileScrollOffset();
   button.classList.add(STICKY_CLASS);
   button.style.setProperty('--accordion-sticky-top', `${offset}px`);
+  applyPanelStickyClearance(button);
 }
 
 function disableAccordionButtonSticky(button) {
   if (!button) return;
   button.classList.remove(STICKY_CLASS);
   button.style.removeProperty('--accordion-sticky-top');
+  clearPanelStickyClearance(button);
 }
 
 function refreshStickyButtons() {
@@ -233,6 +253,7 @@ function refreshStickyButtons() {
   const offset = getMobileScrollOffset();
   buttons.forEach((btn) => {
     btn.style.setProperty('--accordion-sticky-top', `${offset}px`);
+    applyPanelStickyClearance(btn);
   });
 }
 
@@ -253,27 +274,25 @@ function scrollAccordionTriggerIntoView(element, behavior) {
     return;
   }
 
-  const offset = getMobileScrollOffset();
-  const rect = element.getBoundingClientRect();
-  const target = Math.max(0, window.scrollY + rect.top - offset);
-  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const clampedTarget = Math.min(target, maxScroll);
+  const targetItem = element.closest('.acc-item') || element;
+  const scrollBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
 
-  window.scrollTo({ top: clampedTarget, behavior });
-
-  if (behavior === 'smooth') {
-    let attempts = 0;
-    const adjust = () => {
-      attempts += 1;
-      const aligned = ensureElementBelowSocials(element);
-      if (!aligned && attempts < 6) {
-        requestAnimationFrame(adjust);
-      }
-    };
-    requestAnimationFrame(adjust);
+  if (typeof targetItem.scrollIntoView === 'function') {
+    try {
+      targetItem.scrollIntoView({ behavior: scrollBehavior, block: 'start', inline: 'nearest' });
+    } catch (_error) {
+      targetItem.scrollIntoView();
+    }
   } else {
-    ensureElementBelowSocials(element);
+    const offset = getMobileScrollOffset();
+    const rect = targetItem.getBoundingClientRect();
+    const targetTop = Math.max(0, window.scrollY + rect.top - offset);
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const clampedTarget = Math.min(targetTop, maxScroll);
+    window.scrollTo({ top: clampedTarget, behavior: scrollBehavior });
   }
+
+  requestAnimationFrame(() => ensureElementBelowSocials(element, scrollBehavior));
 }
 
 function applyActiveQuestion(id, { syncHash = true, scrollMobile = false } = {}) {
@@ -309,7 +328,7 @@ function renderDesktopQuestion(id) {
 
   viewer.setAttribute('tabindex', '0');
   viewer.innerHTML = `
-    <article class="question" data-question-id="${item.id}">
+    <article class="question card-surface" data-question-id="${item.id}">
       <header class="question-header">
         <p class="question-section">${item.section}</p>
         <h2>${item.question}</h2>
@@ -346,6 +365,7 @@ function handleSidebarClick(event) {
 
 function ensureSidebarStructure(sidebar) {
   if (!sidebar) return { container: null };
+  sidebar.classList.add('card-surface');
   let container = sidebar.querySelector('.sidebar-content');
   if (!container) {
     sidebar.innerHTML = '';
@@ -360,6 +380,7 @@ function ensureSidebarStructure(sidebar) {
     `;
     sidebar.appendChild(footer);
   } else {
+    container.className = 'sidebar-content';
     container.innerHTML = '';
   }
 
@@ -444,14 +465,8 @@ function renderDesktop() {
 }
 
 function adjustPanelHeight(panel) {
+  if (!panel) return;
   panel.style.maxHeight = panel.scrollHeight + 'px';
-
-  if (isMobileLayout() && panel.classList.contains('open')) {
-    const button = panel.previousElementSibling;
-    if (button) {
-      requestAnimationFrame(() => ensurePanelBelowSticky(panel, button));
-    }
-  }
 }
 
 function collapsePanel(panel) {
@@ -459,6 +474,7 @@ function collapsePanel(panel) {
   panel.style.maxHeight = '0px';
   panel.style.opacity = '0';
   panel.classList.remove('open');
+  setPanelAccessibilityState(panel, false);
   if (button) {
     disableAccordionButtonSticky(button);
     button.classList.remove('is-active');
@@ -473,6 +489,7 @@ function expandPanel(panel, { scroll = AUTO_SCROLL } = {}) {
   panel.classList.add('open');
   panel.style.opacity = '1';
   adjustPanelHeight(panel);
+  setPanelAccessibilityState(panel, true);
   if (button) {
     button.classList.add('is-active');
     button.setAttribute('aria-expanded', 'true');
@@ -486,7 +503,9 @@ function expandPanel(panel, { scroll = AUTO_SCROLL } = {}) {
       'load',
       () => {
         adjustPanelHeight(panel);
-        if (isMobileLayout() && button) ensurePanelBelowSticky(panel, button);
+        if (isMobileLayout() && button && button.classList.contains(STICKY_CLASS)) {
+          applyPanelStickyClearance(button);
+        }
       },
       { once: true }
     );
@@ -497,7 +516,7 @@ function expandPanel(panel, { scroll = AUTO_SCROLL } = {}) {
     if (isMobileLayout()) {
       enableAccordionButtonSticky(button);
       scheduleStickyRefresh();
-      requestAnimationFrame(() => ensurePanelBelowSticky(panel, button));
+      applyPanelStickyClearance(button);
     } else {
       disableAccordionButtonSticky(button);
     }
@@ -510,7 +529,6 @@ function expandPanel(panel, { scroll = AUTO_SCROLL } = {}) {
       if (isMobileLayout()) {
         scrollAccordionTriggerIntoView(target, behavior);
         requestAnimationFrame(updateSticky);
-        requestAnimationFrame(() => ensurePanelBelowSticky(panel, button));
         return;
       }
 
@@ -523,9 +541,6 @@ function expandPanel(panel, { scroll = AUTO_SCROLL } = {}) {
     });
   } else {
     updateSticky();
-    if (isMobileLayout()) {
-      requestAnimationFrame(() => ensurePanelBelowSticky(panel, button));
-    }
   }
 }
 
@@ -566,10 +581,9 @@ function renderMobile() {
   FAQ.forEach((section) => {
     if (!section || !Array.isArray(section.items) || !section.items.length) return;
 
-    const heading = document.createElement('div');
-    heading.className = 'side-title';
-    heading.textContent = section.section;
-    heading.style.margin = '12px 16px 10px';
+  const heading = document.createElement('div');
+  heading.className = 'side-title';
+  heading.textContent = section.section;
     accordion.appendChild(heading);
 
     section.items.forEach((item) => {
@@ -584,9 +598,11 @@ function renderMobile() {
           <span class="chev" aria-hidden="true">▾</span>
         </button>
         <div class="acc-panel" id="p-${item.id}" role="region" aria-labelledby="q-${item.id}">
-          <div class="acc-body">${item.a}</div>
+          <div class="acc-body card-surface">${item.a}</div>
         </div>
       `;
+      const panel = wrap.querySelector('.acc-panel');
+      setPanelAccessibilityState(panel, false);
       accordion.appendChild(wrap);
     });
   });
