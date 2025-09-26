@@ -3,7 +3,6 @@
 (() => {
   const AUTO_SCROLL = false;
   const DEBUG = false;
-  const STICKY_CLASS = 'is-sticky';
   const STATIC_ACCORDION_IDS = new Set(['kim-jestesmy']);
   const SOCIAL_GLOW_MAPPING = new Map([
     ['jak-dowiem-sie-o-spotkaniu', [0, 1]],
@@ -325,6 +324,11 @@
     updateSidebarActive(id);
     if (syncHash) setHashQuestionId(id);
     syncMobileAccordion(id, { scroll: scrollMobile, focus: false });
+
+    const glowIndices = SOCIAL_GLOW_MAPPING.get(id);
+    if (glowIndices) {
+      triggerSocialGlow(glowIndices);
+    }
   }
 
   function syncMobileAccordion(id, { scroll = false, focus = false } = {}) {
@@ -347,13 +351,6 @@
       const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
       const target = button || panel;
       scrollAccordionTriggerIntoView(target, behavior);
-      requestAnimationFrame(() => {
-        if (button && isMobileLayout()) {
-          enableAccordionButtonSticky(button);
-        } else if (button) {
-          disableAccordionButtonSticky(button);
-        }
-      });
     }
 
     if (focus && button && typeof button.focus === 'function') {
@@ -384,15 +381,6 @@
       );
     });
 
-    const updateSticky = () => {
-      if (!button) return;
-      if (isMobileLayout()) {
-        enableAccordionButtonSticky(button);
-      } else {
-        disableAccordionButtonSticky(button);
-      }
-    };
-
     if (scroll) {
       const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
       const target = button || panel;
@@ -400,17 +388,13 @@
       const performScroll = () => {
         if (isMobileLayout()) {
           scrollAccordionTriggerIntoView(target, behavior);
-          requestAnimationFrame(updateSticky);
           return;
         }
 
         panel.scrollIntoView({ behavior, block: 'start', inline: 'nearest' });
-        updateSticky();
       };
 
       requestAnimationFrame(() => requestAnimationFrame(performScroll));
-    } else {
-      updateSticky();
     }
   }
 
@@ -422,7 +406,6 @@
     setPanelAccessibilityState(panel, false);
 
     if (button) {
-      disableAccordionButtonSticky(button);
       button.classList.remove('is-active');
       button.setAttribute('aria-expanded', 'false');
       const chev = button.querySelector('.chev');
@@ -472,18 +455,6 @@
 
     return Math.max(safeTop, 0);
   }
-
-  function enableAccordionButtonSticky(button) {
-    if (!button) return;
-    disableAccordionButtonSticky(button);
-  }
-
-  function disableAccordionButtonSticky(button) {
-    if (!button) return;
-    button.classList.remove(STICKY_CLASS);
-    button.style.removeProperty('--accordion-sticky-top');
-  }
-
   function scrollAccordionTriggerIntoView(element, behavior) {
     if (!element) return;
 
@@ -574,11 +545,6 @@
 
     expandPanel(panel);
     applyActiveQuestion(id, { syncHash: true, scrollMobile: false });
-
-    const glowIndices = SOCIAL_GLOW_MAPPING.get(id);
-    if (glowIndices) {
-      triggerSocialGlow(glowIndices);
-    }
   }
 
   function handleSidebarClick(event) {
