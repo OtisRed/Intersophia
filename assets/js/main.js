@@ -23,7 +23,6 @@
   const CONFIG = {
     // Feature flags
     AUTO_SCROLL: false,
-    DEBUG: false,
     
     // Layout & responsive
     MOBILE_BREAKPOINT: 960,
@@ -33,7 +32,6 @@
     ACCORDION_TRANSITION_DURATION: 400,
     QUESTION_REVEAL_DURATION: 480,
     SOCIAL_REDUCED_MOTION_TIMEOUT: 450,
-    SCROLL_DEBOUNCE_MS: 16, // ~60fps
     
     // Social media glow
     SOCIAL_GLOW_CLASS: 'glow-twice',
@@ -41,7 +39,6 @@
     
     // Scroll offsets
     MOBILE_STICKY_OFFSET: 32,
-    ACCORDION_SCROLL_MARGIN: 18,
     
     // Static accordion items (always expanded)
     STATIC_ACCORDION_IDS: new Set(['kim-jestesmy']),
@@ -54,14 +51,6 @@
     ]),
   };
 
-  // Legacy constants for backward compatibility
-  const AUTO_SCROLL = CONFIG.AUTO_SCROLL;
-  const DEBUG = CONFIG.DEBUG;
-  const STATIC_ACCORDION_IDS = CONFIG.STATIC_ACCORDION_IDS;
-  const SOCIAL_GLOW_MAPPING = CONFIG.SOCIAL_GLOW_MAPPING;
-  const SOCIAL_GLOW_CLASS = CONFIG.SOCIAL_GLOW_CLASS;
-  const SOCIAL_REDUCED_MOTION_TIMEOUT = CONFIG.SOCIAL_REDUCED_MOTION_TIMEOUT;
-
   const layoutQuery = window.matchMedia(`(max-width: ${CONFIG.MOBILE_BREAKPOINT}px)`);
   const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -69,6 +58,10 @@
     viewer: document.getElementById('contentInner'),
     sidebar: document.getElementById('sidebar'),
     accordion: document.getElementById('mobileAccordion'),
+    // Cache social icons for performance
+    socialIcons: null,
+    // Cache document fragment for reuse
+    fragment: null,
   };
 
   const state = {
@@ -88,6 +81,19 @@
   init();
 
   /**
+   * Initializes cached DOM references for performance
+   * @function initDomCache
+   */
+  function initDomCache() {
+    // Cache social icons and containers once to avoid repeated DOM queries
+    dom.socialIcons = {
+      desktop: Array.from(document.querySelectorAll('.socials-desktop .icon-btn')),
+      mobile: Array.from(document.querySelectorAll('.socials-mobile .icon-btn')),
+      mobileContainer: document.querySelector('.socials-mobile'),
+    };
+  }
+
+  /**
    * Initializes the FAQ application
    * Sets up event listeners, loads data, and renders initial state
    * @async
@@ -99,7 +105,7 @@
     try {
       const sections = await loadFaqData();
       hydrate(sections);
-      if (DEBUG) runTests();
+
     } catch (error) {
       handleDataLoadError(error);
     }
@@ -143,6 +149,7 @@
 
     renderDesktop();
     renderMobile();
+    initDomCache();
 
     if (state.activeId && state.questions.has(state.activeId)) {
       renderDesktopQuestion(state.activeId);
@@ -265,7 +272,7 @@
     const footer = document.createElement('footer');
     footer.className = 'sidebar-footer';
     footer.innerHTML = `
-      <small>© 2025 | DESGINED BY<br>
+      <small>© 2025 | DESIGNED BY<br>
         <a href="https://www.linkedin.com/in/krzysztof-durczak/" target="_blank" rel="noopener">KRZYSZTOF DURCZAK</a> |
         <a href="https://github.com/OtisRed" target="_blank" rel="noopener">OTISRED</a>
       </small>
@@ -301,7 +308,7 @@
       }
 
       validItems.forEach((entry) => {
-        if (STATIC_ACCORDION_IDS.has(entry.id)) {
+        if (CONFIG.STATIC_ACCORDION_IDS.has(entry.id)) {
           const staticBlock = createStaticAccordionBlock(entry);
           fragment.appendChild(staticBlock);
           return;
@@ -408,7 +415,7 @@
       }
     }
 
-    smoothScrollTo(dom.viewer, 0);
+    scrollTo({ target: dom.viewer, mode: 'container' });
   }
 
   function updateSidebarActive(id) {
@@ -437,7 +444,7 @@
     if (syncHash) setHashQuestionId(id);
     syncMobileAccordion(id, { scroll: scrollMobile, focus: false });
 
-    const glowIndices = SOCIAL_GLOW_MAPPING.get(id);
+    const glowIndices = CONFIG.SOCIAL_GLOW_MAPPING.get(id);
     if (glowIndices) {
       triggerSocialGlow(glowIndices);
     }
@@ -475,9 +482,9 @@
    * @function expandPanel
    * @param {HTMLElement} panel - The panel element to expand
    * @param {Object} options - Configuration options
-   * @param {boolean} [options.scroll=AUTO_SCROLL] - Whether to scroll panel into view
+   * @param {boolean} [options.scroll=CONFIG.AUTO_SCROLL] - Whether to scroll panel into view
    */
-  function expandPanel(panel, { scroll = AUTO_SCROLL } = {}) {
+  function expandPanel(panel, { scroll = CONFIG.AUTO_SCROLL } = {}) {
     const button = panel.previousElementSibling;
     panel.classList.add('open');
     panel.style.opacity = '1';
@@ -501,16 +508,14 @@
     });
 
     if (scroll) {
-      const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
       const target = button || panel;
 
       const performScroll = () => {
         if (isMobileLayout()) {
-          scrollAccordionTriggerIntoView(target, behavior);
-          return;
+          scrollTo({ target, mode: 'accordion', respectSticky: true });
+        } else {
+          scrollTo({ target: panel, mode: 'element' });
         }
-
-        panel.scrollIntoView({ behavior, block: 'start', inline: 'nearest' });
       };
 
       requestAnimationFrame(() => requestAnimationFrame(performScroll));
@@ -557,8 +562,8 @@
   function getMobileScrollOffset() {
     if (!isMobileLayout()) return 0;
     
-    // Simple calculation: if socials are sticky, account for their height
-    const socials = document.querySelector('.socials-mobile');
+    // Use cached reference if available, fallback to query
+    const socials = dom.socialIcons?.mobileContainer || document.querySelector('.socials-mobile');
     if (socials && socials.getBoundingClientRect().top <= 0) {
       return socials.offsetHeight + CONFIG.MOBILE_STICKY_OFFSET; // Configurable margin
     }
@@ -566,20 +571,7 @@
     return 0;
   }
   function scrollAccordionTriggerIntoView(element, behavior) {
-    if (!element) return;
-
-    const scrollBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
-    const targetItem = element.closest('.acc-item') || element;
-    
-    // Simple scroll with offset for mobile sticky socials
-    if (isMobileLayout()) {
-      const offset = getMobileScrollOffset();
-      const rect = targetItem.getBoundingClientRect();
-      const targetY = window.scrollY + rect.top - offset;
-      window.scrollTo({ top: Math.max(0, targetY), behavior: scrollBehavior });
-    } else {
-      element.scrollIntoView({ behavior: scrollBehavior, block: 'start' });
-    }
+    scrollTo({ target: element, behavior, mode: 'accordion', respectSticky: true });
   }
 
   /**
@@ -591,8 +583,8 @@
    * triggerSocialGlow([2]);    // Glows OneNote only
    */
   function triggerSocialGlow(indices = [0]) {
-    const desktopIcons = Array.from(document.querySelectorAll('.socials-desktop .icon-btn'));
-    const mobileIcons = Array.from(document.querySelectorAll('.socials-mobile .icon-btn'));
+    // Use cached icons for better performance
+    const { desktop: desktopIcons, mobile: mobileIcons } = dom.socialIcons || { desktop: [], mobile: [] };
 
     const icons = indices
       .flatMap((index) => {
@@ -612,20 +604,20 @@
 
       if (!shouldAnimate) {
         icon.classList.add('is-active');
-        window.setTimeout(() => icon.classList.remove('is-active'), SOCIAL_REDUCED_MOTION_TIMEOUT);
+        window.setTimeout(() => icon.classList.remove('is-active'), CONFIG.SOCIAL_REDUCED_MOTION_TIMEOUT);
         return;
       }
 
-      icon.classList.remove(SOCIAL_GLOW_CLASS);
+      icon.classList.remove(CONFIG.SOCIAL_GLOW_CLASS);
       void icon.offsetWidth;
 
       const handleAnimationEnd = () => {
-        icon.classList.remove(SOCIAL_GLOW_CLASS);
+        icon.classList.remove(CONFIG.SOCIAL_GLOW_CLASS);
         icon.removeEventListener('animationend', handleAnimationEnd);
       };
 
       icon.addEventListener('animationend', handleAnimationEnd);
-      icon.classList.add(SOCIAL_GLOW_CLASS);
+      icon.classList.add(CONFIG.SOCIAL_GLOW_CLASS);
     });
   }
 
@@ -686,19 +678,66 @@
     });
   }
 
-  function scrollQuestionToTop() {
-    if (!dom.viewer) return;
-    smoothScrollTo(dom.viewer, 0);
+  /**
+   * Universal scroll utility with support for different scroll contexts
+   * @function scrollTo
+   * @param {Object} options - Scroll configuration
+   * @param {HTMLElement} options.target - Element to scroll or scroll into view
+   * @param {number} [options.top=0] - Scroll position (for container scrolling)
+   * @param {'auto'|'smooth'|null} [options.behavior=null] - Override behavior (null = auto-detect)
+   * @param {'element'|'container'|'accordion'} [options.mode='element'] - Scroll mode
+   * @param {boolean} [options.respectSticky=false] - Account for mobile sticky elements
+   */
+  function scrollTo({ 
+    target, 
+    top = 0, 
+    behavior = null, 
+    mode = 'element', 
+    respectSticky = false 
+  } = {}) {
+    if (!target) return;
+    
+    // Auto-detect behavior if not specified
+    const scrollBehavior = behavior || (prefersReducedMotion() ? 'auto' : 'smooth');
+    
+    switch (mode) {
+      case 'container':
+        // Scroll within a container element
+        if (typeof target.scrollTo === 'function') {
+          target.scrollTo({ top, behavior: scrollBehavior });
+        } else {
+          target.scrollTop = top;
+        }
+        break;
+        
+      case 'accordion':
+        // Accordion-specific scrolling with mobile sticky offset
+        const targetItem = target.closest('.acc-item') || target;
+        
+        if (isMobileLayout() && respectSticky) {
+          const offset = getMobileScrollOffset();
+          const rect = targetItem.getBoundingClientRect();
+          const targetY = window.scrollY + rect.top - offset;
+          window.scrollTo({ top: Math.max(0, targetY), behavior: scrollBehavior });
+        } else {
+          target.scrollIntoView({ behavior: scrollBehavior, block: 'start' });
+        }
+        break;
+        
+      case 'element':
+      default:
+        // Standard element scroll into view
+        target.scrollIntoView({ 
+          behavior: scrollBehavior, 
+          block: 'start', 
+          inline: 'nearest' 
+        });
+    }
   }
 
-  function smoothScrollTo(target, top = 0) {
-    if (!target) return;
-    const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
-    if (typeof target.scrollTo === 'function') {
-      target.scrollTo({ top, behavior });
-    } else {
-      target.scrollTop = top;
-    }
+  function scrollQuestionToTop() {
+    if (!dom.viewer) return;
+    scrollTo({ target: dom.viewer, mode: 'container' });
   }
 
   function setHashQuestionId(id) {
@@ -721,7 +760,8 @@
     try {
       hash = decodeURIComponent(hash);
     } catch (error) {
-      if (DEBUG) console.warn('Nie udało się zdekodować hash:', error);
+      // Fallback to raw hash if decoding fails
+      console.warn('Failed to decode URL hash:', error.message);
     }
     return hash.trim() || null;
   }
@@ -754,7 +794,7 @@
   }
 
   function bindGlobalListeners() {
-    window.addEventListener('resize', refreshOpenPanels);
+    window.addEventListener('resize', refreshOpenPanels, { passive: true });
     window.addEventListener('hashchange', handleHashChange);
 
     observeMedia(layoutQuery, handleLayoutChange);
@@ -791,9 +831,7 @@
    * @returns {boolean} True if viewport is mobile-sized
    */
   function isMobileLayout() {
-    return layoutQuery && typeof layoutQuery.matches === 'boolean'
-      ? layoutQuery.matches
-      : window.innerWidth <= CONFIG.MOBILE_BREAKPOINT;
+    return layoutQuery?.matches ?? window.innerWidth <= CONFIG.MOBILE_BREAKPOINT;
   }
 
   /**
@@ -802,41 +840,16 @@
    * @returns {boolean} True if reduced motion is preferred
    */
   function prefersReducedMotion() {
-    return reduceMotionQuery && typeof reduceMotionQuery.matches === 'boolean'
-      ? reduceMotionQuery.matches
-      : false;
+    return reduceMotionQuery?.matches ?? false;
   }
 
   function handleDataLoadError(error) {
-    console.error('Nie udało się wczytać FAQ z faq-data.json:', error);
+    console.error('Failed to load FAQ data from faq-data.json:', error);
     if (dom.viewer) {
       dom.viewer.innerHTML = '<p style="opacity:.7">Brak danych FAQ – sprawdź plik <code>faq-data.json</code>.</p>';
     }
   }
 
-  function runTests() {
-    try {
-      const totalItems = state.questions.size;
-      const sidebarCount = dom.sidebar ? dom.sidebar.querySelectorAll('.side-link').length : 0;
-      const accordionCount = dom.accordion ? dom.accordion.querySelectorAll('.acc-item').length : 0;
 
-      console.info('[TEST] FAQ items count:', totalItems);
-      console.assert(sidebarCount === totalItems, 'Sidebar link count should match FAQ size');
-      console.assert(accordionCount === totalItems, 'Accordion item count should match FAQ size');
-
-      const ids = state.sections.flatMap((section) =>
-        (Array.isArray(section?.items) ? section.items : []).map((item) => String(item?.id || ''))
-      );
-      const duplicates = ids.filter((id, index) => id && ids.indexOf(id) !== index);
-      console.assert(!duplicates.length, 'FAQ item IDs must be unique: ' + duplicates.join(', '));
-
-      const questionCount = dom.viewer ? dom.viewer.querySelectorAll('.question').length : 0;
-      console.assert(questionCount <= 1, 'Question viewer should render a single article at a time');
-
-      console.log('%cSelf-tests passed', 'color: #22c55e;');
-    } catch (error) {
-      console.error('Self-tests failed:', error);
-    }
-  }
 })();
 

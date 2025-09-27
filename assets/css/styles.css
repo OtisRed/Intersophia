@@ -15,16 +15,16 @@
   --light-gray: #0b1724;
 
   /* Page / theme tokens (dark as default) */
-  --page-bg: #000000;
-  --header-bg: #000000;
+  --page-bg: var(--black);
+  --header-bg: var(--black);
   --social-bg: #253b4d;
-  --main-bg: #000000;
+  --main-bg: var(--black);
 
   --bg: var(--page-bg);
-  --panel: #0b1724;
+  --panel: var(--light-gray);
 
   /* new: specific accordion background (lighter than panel) */
-  --accordion-bg: #000000;
+  --accordion-bg: var(--black);
 
   --text: #e6eef8;
   --muted: #9aa6b2;
@@ -69,8 +69,6 @@
 
 /* responsive tokens */
 @media (max-width: 600px) { :root { --header-height: 110px; } }
-/* mobile token for --social-size removed here to avoid duplication;
-   final value is set in the main @media (max-width:960px) block below. */
 
 /* ===== BASE / LAYOUT ===== */
 h﻿tml, body {
@@ -109,7 +107,7 @@ a { color: inherit; text-decoration: none; }
               var(--accent-gradient) border-box;
   box-shadow: 0 0 0 1px var(--accent-ring-orange),
               0 0 0 2px var(--accent-ring-blue),
-              0 12px 28px rgba(2,6,23,0.36);
+              0 12px 28px var(--shadow-dark);
 }
 
 .socials.card-surface,
@@ -328,7 +326,7 @@ header { position: static; width: 100%; background: var(--bg); }
               var(--accent-gradient) border-box;
   box-shadow: 0 0 0 1px var(--accent-ring-orange),
               0 0 0 2px var(--accent-ring-blue),
-              0 12px 28px rgba(2,6,23,0.36);
+              0 12px 28px var(--shadow-dark);
 }
 
 .sidebar-content {
