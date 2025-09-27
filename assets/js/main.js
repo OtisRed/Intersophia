@@ -49,6 +49,18 @@
       ['jak-moge-zlapac-kontakt', [1]],          // Messenger
       ['do-czego-uzywacie-onenote', [2]],        // OneNote
     ]),
+    
+    // UX Enhancement flags
+    KEYBOARD_NAVIGATION_ENABLED: true,
+    FOCUS_ENHANCEMENT_ENABLED: true,
+    PROGRESSIVE_ENHANCEMENT_ENABLED: true,
+    
+    // Loading state configuration
+    LOADING_SKELETON_ITEMS: 3,
+    LOADING_DELAY_MS: 100,
+    
+    // Smart scroll behavior
+    SMART_SCROLL_THRESHOLD: 300,
   };
 
   const layoutQuery = window.matchMedia(`(max-width: ${CONFIG.MOBILE_BREAKPOINT}px)`);
@@ -101,12 +113,19 @@
    */
   async function init() {
     bindGlobalListeners();
-
+    
+    // Show loading state immediately for better perceived performance
+    showLoadingState();
+    
     try {
+      // Small delay to ensure loading state is visible
+      await new Promise(resolve => setTimeout(resolve, CONFIG.LOADING_DELAY_MS));
+      
       const sections = await loadFaqData();
       hydrate(sections);
 
     } catch (error) {
+      showErrorState(error);
       handleDataLoadError(error);
     }
   }
@@ -393,6 +412,26 @@
     const entry = state.questions.get(id);
     if (!entry) return;
 
+    // Add smooth content transition
+    const hasExistingContent = dom.viewer.children.length > 0 && !dom.viewer.querySelector('.loading-skeleton');
+    if (hasExistingContent && !prefersReducedMotion()) {
+      dom.viewer.classList.add('content-fade-out');
+      
+      // Wait for fade out, then update content
+      setTimeout(() => {
+        updateDesktopQuestionContent(entry);
+      }, 150);
+    } else {
+      // Direct update for first load or reduced motion
+      updateDesktopQuestionContent(entry);
+    }
+  }
+
+  /**
+   * Update desktop question content with smooth transitions
+   * @param {Object} entry - The question entry to render
+   */
+  function updateDesktopQuestionContent(entry) {
     dom.viewer.setAttribute('tabindex', '0');
     dom.viewer.innerHTML = `
       <article class="question card-surface" data-question-id="${entry.id}" aria-label="${entry.question}">
@@ -403,8 +442,13 @@
     const article = dom.viewer.querySelector('.question');
     if (article) {
       article.classList.remove('question-animate');
-
+      
+      // Remove fade out and add fade in
+      dom.viewer.classList.remove('content-fade-out');
       if (!prefersReducedMotion()) {
+        dom.viewer.classList.add('content-fade-in');
+        setTimeout(() => dom.viewer.classList.remove('content-fade-in'), 300);
+        
         void article.offsetWidth;
         article.classList.add('question-animate');
         article.addEventListener(
@@ -793,9 +837,172 @@
     applyActiveQuestion(candidate, { syncHash: false, scrollMobile: isMobileLayout() });
   }
 
+  /**
+   * Enhanced keyboard navigation handler
+   * Supports arrow keys for navigation and Enter/Space for activation
+   * @param {KeyboardEvent} event - The keyboard event
+   */
+  function handleKeyboardNavigation(event) {
+    const { key, target, ctrlKey, metaKey } = event;
+    
+    // Show keyboard navigation hint on first use
+    if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) {
+      if (!document.body.classList.contains('keyboard-navigation')) {
+        document.body.classList.add('keyboard-navigation');
+        setTimeout(() => document.body.classList.remove('keyboard-navigation'), 3000);
+      }
+    }
+    
+    // Don't interfere with form inputs or when modifier keys are pressed
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || ctrlKey || metaKey) {
+      return;
+    }
+
+    const isMobile = isMobileLayout();
+    const questionIds = Array.from(questionIndex.keys());
+    const currentIndex = questionIds.indexOf(state.activeId);
+
+    switch (key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        event.preventDefault();
+        navigateToQuestion(currentIndex + 1, questionIds, isMobile);
+        break;
+        
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        event.preventDefault();
+        navigateToQuestion(currentIndex - 1, questionIds, isMobile);
+        break;
+        
+      case 'Home':
+        event.preventDefault();
+        navigateToQuestion(0, questionIds, isMobile);
+        break;
+        
+      case 'End':
+        event.preventDefault();
+        navigateToQuestion(questionIds.length - 1, questionIds, isMobile);
+        break;
+        
+      case 'Enter':
+      case ' ':
+        // Handle activation when focused on sidebar links or accordion buttons
+        if (target.classList.contains('side-link') || target.classList.contains('acc-btn')) {
+          event.preventDefault();
+          target.click();
+        }
+        break;
+    }
+  }
+
+  /**
+   * Show loading skeleton while FAQ data is being fetched
+   */
+  function showLoadingState() {
+    const skeletonItems = Array.from({ length: CONFIG.LOADING_SKELETON_ITEMS }, (_, i) => `
+      <div class="skeleton-item" style="animation-delay: ${i * 0.1}s">
+        <div class="skeleton-title"></div>
+        <div class="skeleton-content"></div>
+        <div class="skeleton-content short"></div>
+      </div>
+    `).join('');
+    
+    const skeletonHTML = `
+      <div class="loading-skeleton" aria-label="Loading content">
+        <div class="skeleton-header">
+          <div class="skeleton-logo"></div>
+        </div>
+        ${skeletonItems}
+      </div>
+    `;
+    
+    if (dom.viewer) {
+      dom.viewer.innerHTML = skeletonHTML;
+    }
+    
+    if (dom.sidebar) {
+      const sidebarSkeleton = Array.from({ length: 6 }, (_, i) => `
+        <div class="skeleton-sidebar-item" style="animation-delay: ${i * 0.05}s"></div>
+      `).join('');
+      dom.sidebar.innerHTML = `<div class="loading-skeleton">${sidebarSkeleton}</div>`;
+    }
+    
+    if (dom.accordion) {
+      const accordionSkeleton = Array.from({ length: CONFIG.LOADING_SKELETON_ITEMS }, (_, i) => `
+        <div class="skeleton-accordion-item" style="animation-delay: ${i * 0.1}s">
+          <div class="skeleton-accordion-button"></div>
+        </div>
+      `).join('');
+      dom.accordion.innerHTML = `<div class="loading-skeleton">${accordionSkeleton}</div>`;
+    }
+  }
+
+  /**
+   * Show error state when FAQ data fails to load
+   * @param {Error} error - The error that occurred
+   */
+  function showErrorState(error) {
+    const errorHTML = `
+      <div class="error-state" role="alert" aria-live="assertive">
+        <div class="error-icon">⚠️</div>
+        <h2>Unable to Load Content</h2>
+        <p>We're having trouble loading the FAQ content. Please check your connection and try again.</p>
+        <button class="error-retry-btn" onclick="location.reload()">Retry</button>
+        <details class="error-details">
+          <summary>Technical Details</summary>
+          <pre>${error.message}</pre>
+        </details>
+      </div>
+    `;
+    
+    if (dom.viewer) {
+      dom.viewer.innerHTML = errorHTML;
+    }
+    
+    // Clear other containers
+    if (dom.sidebar) dom.sidebar.innerHTML = '';
+    if (dom.accordion) dom.accordion.innerHTML = '';
+  }
+
+  /**
+   * Navigate to a specific question by index with wrap-around
+   * @param {number} targetIndex - The target question index
+   * @param {string[]} questionIds - Array of all question IDs
+   * @param {boolean} isMobile - Whether in mobile layout
+   */
+  function navigateToQuestion(targetIndex, questionIds, isMobile) {
+    if (questionIds.length === 0) return;
+    
+    // Wrap around navigation
+    let wrappedIndex = targetIndex;
+    if (targetIndex >= questionIds.length) {
+      wrappedIndex = 0;
+    } else if (targetIndex < 0) {
+      wrappedIndex = questionIds.length - 1;
+    }
+    
+    const targetId = questionIds[wrappedIndex];
+    applyActiveQuestion(targetId, { syncHash: true, scrollMobile: isMobile });
+    
+    // Focus the appropriate element for keyboard users
+    if (isMobile) {
+      const shouldScroll = !reduceMotionQuery.matches;
+      syncMobileAccordion(targetId, { scroll: shouldScroll, focus: true });
+    } else {
+      const sidebarButton = dom.sidebar?.querySelector(`[data-question-id="${targetId}"]`);
+      if (sidebarButton && typeof sidebarButton.focus === 'function') {
+        sidebarButton.focus({ preventScroll: true });
+      }
+    }
+  }
+
   function bindGlobalListeners() {
     window.addEventListener('resize', refreshOpenPanels, { passive: true });
     window.addEventListener('hashchange', handleHashChange);
+    
+    // Enhanced keyboard navigation
+    document.addEventListener('keydown', handleKeyboardNavigation);
 
     observeMedia(layoutQuery, handleLayoutChange);
     observeMedia(reduceMotionQuery, handleMotionPreferenceChange);

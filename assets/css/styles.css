@@ -541,6 +541,22 @@ header { position: static; width: 100%; background: var(--bg); }
   text-decoration: none;
   transition: transform .06s, box-shadow .12s, background .12s;
 }
+/* Enhanced social icon interaction */
+.icon-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.icon-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(214,108,44,0.4) 0%, transparent 70%);
+  transform: scale(0);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: inherit;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .icon-btn:hover {
     background: rgba(214,108,44,0.38);
@@ -549,14 +565,31 @@ header { position: static; width: 100%; background: var(--bg); }
     box-shadow: 0 10px 22px rgba(214,108,44,0.28);
   }
 
+  .icon-btn:hover::before {
+    transform: scale(1);
+  }
+
   .icon-btn:hover img,
   .icon-btn:hover svg {
     filter: drop-shadow(0 0 6px rgba(214,108,44,0.45));
   }
 }
+
+.icon-btn:active::before {
+  transform: scale(1.3);
+  transition: transform 0.15s ease;
+}
 /* keep icon aspect consistent: use 80% for both width and height */
 .icon-btn img, .icon-btn svg { width: 80%; height: 80%; object-fit: contain; display: block; }
-.icon-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(214,108,44,0.35); z-index: 5; }
+.icon-btn:focus-visible { 
+  outline: none; 
+  box-shadow: 0 0 0 3px rgba(214,108,44,0.4), 0 4px 12px rgba(214,108,44,0.15); 
+  z-index: 5; 
+}
+
+.icon-btn:focus:not(:focus-visible) {
+  outline: none;
+}
 .icon-btn:active { transform: translateY(1px); }
 
 .icon-btn.glow-twice {
@@ -678,22 +711,302 @@ header { position: static; width: 100%; background: var(--bg); }
   border-color: rgba(214,108,44,0.28);
 }
 
-/* Remove browser focus outline from buttons/links we handle manually */
-.acc-btn,
-.acc-btn:focus,
-.acc-btn:focus-visible,
-.acc-btn:active,
-.icon-btn,
-.icon-btn:focus,
-.icon-btn:focus-visible,
-button:focus,
-a:focus {
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent !important;
+/* Enhanced focus indicators for accessibility */
+.acc-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(214,108,44,0.4), inset 0 0 0 2px rgba(214,108,44,0.2);
+  border-color: var(--brand-orange);
 }
 
-/* If any inner element (like <span>/.chev) had a border, ensure it doesn't show */
-.acc-btn * { border: none !important; box-shadow: none !important; }
+.acc-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Remove tap highlights but preserve focus for accessibility */  
+.acc-btn,
+.icon-btn {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Clean up inner element styling */
+.acc-btn * { 
+  border: none; 
+  box-shadow: none; 
+}
+
+/* Keyboard navigation visual enhancements */
+.side-link[aria-current="true"] {
+  background: rgba(214,108,44,0.15);
+  border-left: 3px solid var(--brand-orange);
+}
+
+.question-display:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(214,108,44,0.3);
+}
+
+/* Subtle keyboard hint (only visible when keyboard navigation is used) */
+body.keyboard-navigation::after {
+  content: "⌨️ Use arrow keys to navigate";
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0,0,0,0.8);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 1000;
+  opacity: 0;
+  animation: keyboardHintFade 3s ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes keyboardHintFade {
+  0%, 10% { opacity: 0; }
+  20%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ===== LOADING STATES ===== */
+.loading-skeleton {
+  padding: 20px;
+}
+
+.skeleton-item,
+.skeleton-sidebar-item,
+.skeleton-accordion-item {
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: skeletonFadeIn 0.6s ease-out forwards;
+}
+
+.skeleton-header {
+  margin-bottom: 24px;
+}
+
+.skeleton-logo,
+.skeleton-title,
+.skeleton-content,
+.skeleton-sidebar-item,
+.skeleton-accordion-button {
+  background: linear-gradient(90deg, var(--panel) 25%, rgba(255,255,255,0.05) 50%, var(--panel) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+.skeleton-logo {
+  height: 60px;
+  width: 200px;
+  margin: 0 auto;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 70%;
+  margin-bottom: 12px;
+}
+
+.skeleton-content {
+  height: 16px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-content.short {
+  width: 60%;
+}
+
+.skeleton-sidebar-item {
+  height: 20px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-accordion-button {
+  height: 48px;
+  width: 100%;
+}
+
+@keyframes skeletonFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ===== ERROR STATES ===== */
+.error-state {
+  text-align: center;
+  padding: 40px 20px;
+  max-width: 500px;
+  margin: 0 auto;
+  color: var(--text);
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.error-state h2 {
+  color: var(--brand-orange);
+  margin-bottom: 16px;
+  font-size: 24px;
+}
+
+.error-state p {
+  margin-bottom: 24px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.error-retry-btn {
+  background: var(--brand-orange);
+  color: var(--white);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 20px;
+}
+
+.error-retry-btn:hover {
+  background: #c55a1f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(214,108,44,0.3);
+}
+
+.error-retry-btn:active {
+  transform: translateY(0);
+}
+
+.error-details {
+  text-align: left;
+  margin-top: 20px;
+}
+
+.error-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.error-details pre {
+  background: var(--panel);
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-x: auto;
+}
+
+/* ===== SMOOTH CONTENT TRANSITIONS ===== */
+.content-fade-out {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.content-fade-in {
+  animation: contentFadeIn 0.3s ease-out;
+}
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced question reveal animation */
+.question-animate {
+  animation: questionReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ===== PROGRESSIVE ENHANCEMENT ===== */
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .loading-skeleton * {
+    animation: none !important;
+  }
+  
+  .content-fade-out,
+  .content-fade-in {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .question-animate {
+    animation: none !important;
+  }
+}
+
+/* Enhanced touch targets for mobile */
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn,
+  .acc-btn,
+  .side-link {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .icon-btn:active {
+    background: rgba(214,108,44,0.2);
+    transform: scale(0.95);
+  }
+  
+  .acc-btn:active,
+  .side-link:active {
+    background: rgba(214,108,44,0.1);
+    transform: scale(0.98);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .icon-btn,
+  .acc-btn,
+  .side-link {
+    border: 2px solid currentColor;
+  }
+  
+  .card-surface {
+    border: 1px solid var(--border);
+  }
+}
+
+/* Dark mode refinements for supported browsers */
+@media (prefers-color-scheme: dark) {
+  .skeleton-logo,
+  .skeleton-title,
+  .skeleton-content,
+  .skeleton-sidebar-item,
+  .skeleton-accordion-button {
+    background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+  }
+}
 
 /* Optional: ensure focus-visible still usable for keyboard users later:
    you can replace the above with a subtler rule instead of removing outlines entirely. */
