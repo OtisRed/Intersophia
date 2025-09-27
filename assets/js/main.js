@@ -1,18 +1,68 @@
+/**
+ * @fileoverview Intersophia FAQ Application
+ * Responsive FAQ interface with desktop sidebar navigation and mobile accordion
+ * Features social media icon glow animations and smooth scroll behavior
+ * 
+ * @author Krzysztof Durczak
+ * @version 2.0
+ * @since 2025
+ * 
+ * Key Features:
+ * - Responsive desktop/mobile layouts
+ * - Social media icon glow animations
+ * - Smooth accordion transitions
+ * - URL hash navigation
+ * - Accessibility support
+ * - Reduced motion respect
+ */
+
 // ===== FAQ APP (responsive desktop/mobile rendering) =====
 
 (() => {
-  const AUTO_SCROLL = false;
-  const DEBUG = false;
-  const STATIC_ACCORDION_IDS = new Set(['kim-jestesmy']);
-  const SOCIAL_GLOW_MAPPING = new Map([
-    ['jak-sie-dowiem-o-spotkaniach', [0, 1]],  // Facebook + Messenger
-    ['jak-moge-zlapac-kontakt', [1]],          // Messenger
-    ['do-czego-uzywacie-onenote', [2]],        // OneNote
-  ]);
-  const SOCIAL_GLOW_CLASS = 'glow-twice';
-  const SOCIAL_REDUCED_MOTION_TIMEOUT = 450;
+  // ===== CONFIGURATION =====
+  const CONFIG = {
+    // Feature flags
+    AUTO_SCROLL: false,
+    DEBUG: false,
+    
+    // Layout & responsive
+    MOBILE_BREAKPOINT: 960,
+    
+    // Animation & timing
+    ANIMATION_DURATION: 300,
+    ACCORDION_TRANSITION_DURATION: 400,
+    QUESTION_REVEAL_DURATION: 480,
+    SOCIAL_REDUCED_MOTION_TIMEOUT: 450,
+    SCROLL_DEBOUNCE_MS: 16, // ~60fps
+    
+    // Social media glow
+    SOCIAL_GLOW_CLASS: 'glow-twice',
+    SOCIAL_GLOW_ANIMATION_DURATION: 750, // 0.75s from CSS
+    
+    // Scroll offsets
+    MOBILE_STICKY_OFFSET: 32,
+    ACCORDION_SCROLL_MARGIN: 18,
+    
+    // Static accordion items (always expanded)
+    STATIC_ACCORDION_IDS: new Set(['kim-jestesmy']),
+    
+    // Social media icon glow mappings
+    SOCIAL_GLOW_MAPPING: new Map([
+      ['jak-sie-dowiem-o-spotkaniach', [0, 1]],  // Facebook + Messenger
+      ['jak-moge-zlapac-kontakt', [1]],          // Messenger
+      ['do-czego-uzywacie-onenote', [2]],        // OneNote
+    ]),
+  };
 
-  const layoutQuery = window.matchMedia('(max-width: 960px)');
+  // Legacy constants for backward compatibility
+  const AUTO_SCROLL = CONFIG.AUTO_SCROLL;
+  const DEBUG = CONFIG.DEBUG;
+  const STATIC_ACCORDION_IDS = CONFIG.STATIC_ACCORDION_IDS;
+  const SOCIAL_GLOW_MAPPING = CONFIG.SOCIAL_GLOW_MAPPING;
+  const SOCIAL_GLOW_CLASS = CONFIG.SOCIAL_GLOW_CLASS;
+  const SOCIAL_REDUCED_MOTION_TIMEOUT = CONFIG.SOCIAL_REDUCED_MOTION_TIMEOUT;
+
+  const layoutQuery = window.matchMedia(`(max-width: ${CONFIG.MOBILE_BREAKPOINT}px)`);
   const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   const dom = {
@@ -22,18 +72,27 @@
   };
 
   const state = {
-    sections: [],
-    flatList: [],
-    questionMap: new Map(),
+    questions: new Map(),     // Single source of truth - combines questionMap + flatList data
+    sections: [],            // Keep for section structure (needed for rendering)
     activeId: null,
-    sidebarButtons: new Map(),
-    accordionItems: new Map(),
-    sidebarBound: false,
-    accordionBound: false,
+    elements: {
+      sidebar: new Map(),    // Renamed from sidebarButtons for clarity
+      accordion: new Map(),  // Renamed from accordionItems for clarity
+    },
+    bound: {
+      sidebar: false,        // Consolidated binding flags
+      accordion: false,
+    }
   };
 
   init();
 
+  /**
+   * Initializes the FAQ application
+   * Sets up event listeners, loads data, and renders initial state
+   * @async
+   * @function init
+   */
   async function init() {
     bindGlobalListeners();
 
@@ -46,6 +105,13 @@
     }
   }
 
+  /**
+   * Loads FAQ data from external JSON file
+   * @async
+   * @function loadFaqData
+   * @returns {Promise<Array>} Array of FAQ sections with items
+   * @throws {Error} When fetch fails or data format is invalid
+   */
   async function loadFaqData() {
     const response = await fetch('assets/faq-data.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -54,24 +120,31 @@
     return data;
   }
 
+  /**
+   * Hydrates the application state with FAQ data and renders initial content
+   * @function hydrate
+   * @param {Array} sections - Raw FAQ sections from loadFaqData
+   */
   function hydrate(sections) {
-    state.sections = Array.isArray(sections) ? sections : [];
-
-    const { flatList, questionMap } = buildQuestionIndex(state.sections);
-    state.flatList = flatList;
-    state.questionMap = questionMap;
+    const rawSections = Array.isArray(sections) ? sections : [];
+    const { questions, processedSections } = buildQuestionIndex(rawSections);
+    
+    state.sections = processedSections; // Store processed sections with cached validItems
+    state.questions = questions;
 
     const hashCandidate = resolveQuestionId(extractHashId());
     if (hashCandidate) {
       state.activeId = hashCandidate;
-    } else if (!state.activeId || !state.questionMap.has(state.activeId)) {
-      state.activeId = state.flatList[0]?.id || null;
+    } else if (!state.activeId || !state.questions.has(state.activeId)) {
+      // Get first question by order
+      const firstQuestion = Array.from(state.questions.values()).sort((a, b) => a.order - b.order)[0];
+      state.activeId = firstQuestion?.id || null;
     }
 
     renderDesktop();
     renderMobile();
 
-    if (state.activeId && state.questionMap.has(state.activeId)) {
+    if (state.activeId && state.questions.has(state.activeId)) {
       renderDesktopQuestion(state.activeId);
       updateSidebarActive(state.activeId);
       setHashQuestionId(state.activeId);
@@ -81,32 +154,55 @@
     }
   }
 
+  /**
+   * Builds question index and processes sections for optimal rendering
+   * Creates a Map for O(1) question lookups and caches valid items per section
+   * @function buildQuestionIndex
+   * @param {Array} sections - Raw FAQ sections from JSON
+   * @returns {Object} Object containing questions Map and processed sections
+   * @returns {Map} returns.questions - Map of question ID to question data
+   * @returns {Array} returns.processedSections - Sections with cached validItems
+   */
   function buildQuestionIndex(sections) {
-    const flatList = [];
-    const map = new Map();
+    const questions = new Map();
 
-    sections.forEach((section) => {
+    // Process sections and cache valid items to avoid repeated processing
+    const processedSections = sections.map((section) => {
       const items = Array.isArray(section?.items) ? section.items : [];
-      items.forEach((item) => {
+      const validItems = [];
+
+      items.forEach((item, index) => {
         if (!item || !item.id) return;
         const id = String(item.id);
-        if (map.has(id)) return;
+        if (questions.has(id)) return;
 
         const entry = {
           id,
           section: section?.section || '',
           question: item.q || '',
           answer: item.a || '',
+          order: questions.size, // Track original order for flatList compatibility
         };
 
-        flatList.push(entry);
-        map.set(id, entry);
+        questions.set(id, entry);
+        validItems.push(entry);
       });
+
+      // Return processed section with cached valid items
+      return {
+        ...section,
+        validItems, // Cache the processed valid items
+      };
     });
 
-    return { flatList, questionMap: map };
+    return { questions, processedSections };
   }
 
+  /**
+   * Renders the desktop sidebar with question navigation
+   * Creates section headings and clickable question links
+   * @function renderDesktop
+   */
   function renderDesktop() {
     const content = ensureSidebarContent();
     if (!content) return;
@@ -141,7 +237,7 @@
 
         li.appendChild(button);
         list.appendChild(li);
-        state.sidebarButtons.set(entry.id, button);
+        state.elements.sidebar.set(entry.id, button);
       });
 
       sectionEl.appendChild(list);
@@ -150,9 +246,9 @@
 
     content.appendChild(fragment);
 
-    if (!state.sidebarBound && dom.sidebar) {
+    if (!state.bound.sidebar && dom.sidebar) {
       dom.sidebar.addEventListener('click', handleSidebarClick);
-      state.sidebarBound = true;
+      state.bound.sidebar = true;
     }
   }
 
@@ -176,15 +272,20 @@
     `;
     dom.sidebar.appendChild(footer);
 
-    state.sidebarButtons.clear();
+    state.elements.sidebar.clear();
     return content;
   }
 
+  /**
+   * Renders the mobile accordion interface
+   * Creates expandable accordion items and static blocks
+   * @function renderMobile
+   */
   function renderMobile() {
     if (!dom.accordion) return;
 
     dom.accordion.innerHTML = '';
-    state.accordionItems.clear();
+    state.elements.accordion.clear();
 
     const fragment = document.createDocumentFragment();
 
@@ -208,7 +309,7 @@
 
         const item = createAccordionItem(entry);
         fragment.appendChild(item.wrapper);
-        state.accordionItems.set(entry.id, {
+        state.elements.accordion.set(entry.id, {
           item: item.wrapper,
           button: item.button,
           panel: item.panel,
@@ -218,9 +319,9 @@
 
     dom.accordion.appendChild(fragment);
 
-    if (!state.accordionBound) {
+    if (!state.bound.accordion) {
       dom.accordion.addEventListener('click', handleAccordionClick);
-      state.accordionBound = true;
+      state.bound.accordion = true;
     }
 
     if (state.activeId) {
@@ -271,15 +372,18 @@
   }
 
   function getValidItems(section) {
-    if (!section || !Array.isArray(section.items)) return [];
-    return section.items
-      .map((item) => (item && state.questionMap.get(String(item.id))) || null)
-      .filter(Boolean);
+    // Return pre-cached valid items instead of processing on each call
+    return section?.validItems || [];
   }
 
+  /**
+   * Renders a specific question in the desktop viewer
+   * @function renderDesktopQuestion
+   * @param {string} id - Question ID to render
+   */
   function renderDesktopQuestion(id) {
     if (!dom.viewer) return;
-    const entry = state.questionMap.get(id);
+    const entry = state.questions.get(id);
     if (!entry) return;
 
     dom.viewer.setAttribute('tabindex', '0');
@@ -308,7 +412,7 @@
   }
 
   function updateSidebarActive(id) {
-    state.sidebarButtons.forEach((button, questionId) => {
+    state.elements.sidebar.forEach((button, questionId) => {
       const isActive = questionId === id;
       button.classList.toggle('active', isActive);
       button.classList.toggle('is-active', isActive);
@@ -316,8 +420,16 @@
     });
   }
 
+  /**
+   * Applies a question as active across desktop and mobile interfaces
+   * @function applyActiveQuestion
+   * @param {string} id - Question ID to activate
+   * @param {Object} options - Configuration options
+   * @param {boolean} [options.syncHash=true] - Whether to update URL hash
+   * @param {boolean} [options.scrollMobile=false] - Whether to scroll on mobile
+   */
   function applyActiveQuestion(id, { syncHash = true, scrollMobile = false } = {}) {
-    if (!id || !state.questionMap.has(id)) return;
+    if (!id || !state.questions.has(id)) return;
 
     state.activeId = id;
     renderDesktopQuestion(id);
@@ -332,14 +444,14 @@
   }
 
   function syncMobileAccordion(id, { scroll = false, focus = false } = {}) {
-    if (!id || !state.accordionItems.size) return;
+    if (!id || !state.elements.accordion.size) return;
 
-    const targetEntry = state.accordionItems.get(id);
+    const targetEntry = state.elements.accordion.get(id);
     if (!targetEntry) return;
 
     const { panel, button } = targetEntry;
 
-    state.accordionItems.forEach((entry, questionId) => {
+    state.elements.accordion.forEach((entry, questionId) => {
       if (questionId !== id && entry.panel.classList.contains('open')) {
         collapsePanel(entry.panel);
       }
@@ -358,6 +470,13 @@
     }
   }
 
+  /**
+   * Expands an accordion panel with animation and accessibility updates
+   * @function expandPanel
+   * @param {HTMLElement} panel - The panel element to expand
+   * @param {Object} options - Configuration options
+   * @param {boolean} [options.scroll=AUTO_SCROLL] - Whether to scroll panel into view
+   */
   function expandPanel(panel, { scroll = AUTO_SCROLL } = {}) {
     const button = panel.previousElementSibling;
     panel.classList.add('open');
@@ -398,6 +517,11 @@
     }
   }
 
+  /**
+   * Collapses an accordion panel with animation and accessibility updates
+   * @function collapsePanel
+   * @param {HTMLElement} panel - The panel element to collapse
+   */
   function collapsePanel(panel) {
     const button = panel.previousElementSibling;
     panel.style.maxHeight = '0px';
@@ -436,7 +560,7 @@
     // Simple calculation: if socials are sticky, account for their height
     const socials = document.querySelector('.socials-mobile');
     if (socials && socials.getBoundingClientRect().top <= 0) {
-      return socials.offsetHeight + 16; // 16px for margin/padding
+      return socials.offsetHeight + CONFIG.MOBILE_STICKY_OFFSET; // Configurable margin
     }
     
     return 0;
@@ -458,6 +582,14 @@
     }
   }
 
+  /**
+   * Triggers glow animation on social media icons
+   * @function triggerSocialGlow
+   * @param {Array<number>} [indices=[0]] - Array of icon indices to animate (0=Facebook, 1=Messenger, 2=OneNote)
+   * @example
+   * triggerSocialGlow([0, 1]); // Glows Facebook and Messenger
+   * triggerSocialGlow([2]);    // Glows OneNote only
+   */
   function triggerSocialGlow(indices = [0]) {
     const desktopIcons = Array.from(document.querySelectorAll('.socials-desktop .icon-btn'));
     const mobileIcons = Array.from(document.querySelectorAll('.socials-mobile .icon-btn'));
@@ -497,18 +629,23 @@
     });
   }
 
+  /**
+   * Handles clicks on accordion buttons in mobile view
+   * @function handleAccordionClick
+   * @param {Event} event - Click event from accordion button
+   */
   function handleAccordionClick(event) {
     const button = event.target.closest('.acc-btn');
     if (!button) return;
 
     const item = button.closest('.acc-item');
     const id = item?.dataset.questionId;
-    if (!id || !state.accordionItems.has(id)) return;
+    if (!id || !state.elements.accordion.has(id)) return;
 
-    const { panel } = state.accordionItems.get(id);
+    const { panel } = state.elements.accordion.get(id);
     const isOpen = panel.classList.contains('open');
 
-    state.accordionItems.forEach((entry, questionId) => {
+    state.elements.accordion.forEach((entry, questionId) => {
       if (questionId !== id && entry.panel.classList.contains('open')) {
         collapsePanel(entry.panel);
       }
@@ -523,12 +660,17 @@
     applyActiveQuestion(id, { syncHash: true, scrollMobile: false });
   }
 
+  /**
+   * Handles clicks on sidebar navigation links in desktop view
+   * @function handleSidebarClick
+   * @param {Event} event - Click event from sidebar link
+   */
   function handleSidebarClick(event) {
     const button = event.target.closest('.side-link');
     if (!button) return;
 
     const id = button.dataset.questionId;
-    if (!id || !state.questionMap.has(id)) return;
+    if (!id || !state.questions.has(id)) return;
 
     if (id === state.activeId) {
       scrollQuestionToTop();
@@ -539,7 +681,7 @@
   }
 
   function refreshOpenPanels() {
-    state.accordionItems.forEach(({ panel }) => {
+    state.elements.accordion.forEach(({ panel }) => {
       if (panel.classList.contains('open')) adjustPanelHeight(panel);
     });
   }
@@ -585,15 +727,15 @@
   }
 
   function resolveQuestionId(candidate) {
-    if (!candidate || !state.questionMap.size) return null;
-    if (state.questionMap.has(candidate)) return candidate;
+    if (!candidate || !state.questions.size) return null;
+    if (state.questions.has(candidate)) return candidate;
 
     if (candidate.startsWith('q-')) {
       const trimmed = candidate.slice(2);
-      if (state.questionMap.has(trimmed)) return trimmed;
+      if (state.questions.has(trimmed)) return trimmed;
     } else {
       const prefixed = `q-${candidate}`;
-      if (state.questionMap.has(prefixed)) return prefixed;
+      if (state.questions.has(prefixed)) return prefixed;
     }
 
     return null;
@@ -620,7 +762,7 @@
   }
 
   function handleLayoutChange() {
-    if (!state.flatList.length) return;
+    if (!state.questions.size) return;
 
     if (isMobileLayout()) {
       syncMobileAccordion(state.activeId, { scroll: false, focus: false });
@@ -643,12 +785,22 @@
     }
   }
 
+  /**
+   * Determines if the current layout should be mobile
+   * @function isMobileLayout
+   * @returns {boolean} True if viewport is mobile-sized
+   */
   function isMobileLayout() {
     return layoutQuery && typeof layoutQuery.matches === 'boolean'
       ? layoutQuery.matches
-      : window.innerWidth <= 960;
+      : window.innerWidth <= CONFIG.MOBILE_BREAKPOINT;
   }
 
+  /**
+   * Checks if user prefers reduced motion for accessibility
+   * @function prefersReducedMotion
+   * @returns {boolean} True if reduced motion is preferred
+   */
   function prefersReducedMotion() {
     return reduceMotionQuery && typeof reduceMotionQuery.matches === 'boolean'
       ? reduceMotionQuery.matches
@@ -664,7 +816,7 @@
 
   function runTests() {
     try {
-      const totalItems = state.flatList.length;
+      const totalItems = state.questions.size;
       const sidebarCount = dom.sidebar ? dom.sidebar.querySelectorAll('.side-link').length : 0;
       const accordionCount = dom.accordion ? dom.accordion.querySelectorAll('.acc-item').length : 0;
 
