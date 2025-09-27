@@ -29,7 +29,7 @@
   --text: #e6eef8;
   --muted: #9aa6b2;
   --border: #1f2937;
-  --shadow: 0 10px 30px rgba(2,6,23,0.6);
+  --shadow: 0 10px 30px var(--shadow-light);
   --radius: 16;
 
   --header-height: 126px;
@@ -39,16 +39,26 @@
   --content-bg: #071226;
   --question-bg: #0b2130;
   --answer-bg: #071925;
-  --answer-border: rgba(255,255,255,0.03);
+  --answer-border: var(--border-subtle);
   --answer-text: var(--text);
 
   --card-gradient: linear-gradient(135deg, rgba(7,25,39,1) 0%, rgba(4,16,28,1) 100%);
-  --card-border: rgba(255,255,255,0.08);
+  --card-border: var(--border-medium);
   --card-radius: 14px;
-  --card-shadow: 0 16px 34px rgba(2,6,23,0.4);
+  --card-shadow: 0 16px 34px var(--shadow-primary);
   --accent-gradient: linear-gradient(140deg, rgba(214,108,44,0.32) 0%, rgba(74,147,195,0.26) 100%);
   --accent-ring-orange: rgba(214,108,44,0.18);
   --accent-ring-blue: rgba(74,147,195,0.16);
+  
+  /* Consolidated RGBA values */
+  --shadow-dark: rgba(2,6,23,0.36);
+  --shadow-primary: rgba(2,6,23,0.4);
+  --shadow-light: rgba(2,6,23,0.6);
+  --border-subtle: rgba(255,255,255,0.03);
+  --border-light: rgba(255,255,255,0.05);
+  --border-medium: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.12);
+  --overlay-dark: rgba(7,18,38,0.85);
 }
 
 /* responsive tokens */
@@ -107,7 +117,7 @@ a { color: inherit; text-decoration: none; }
               var(--accent-gradient) border-box;
   box-shadow: 0 0 0 1px var(--accent-ring-orange),
               0 0 0 2px var(--accent-ring-blue),
-              0 12px 28px rgba(2,6,23,0.36);
+              0 12px 28px var(--shadow-dark);
 }
 
 .layout {
@@ -173,8 +183,8 @@ a { color: inherit; text-decoration: none; }
 .question-empty {
   padding: 24px;
   border-radius: 12px;
-  background: rgba(7,18,38,0.85);
-  border: 1px dashed rgba(255,255,255,0.12);
+  background: var(--overlay-dark);
+  border: 1px dashed var(--border-strong);
   color: var(--muted);
   line-height: 1.6;
 }
@@ -338,7 +348,7 @@ header { position: static; width: 100%; background: var(--bg); }
               var(--accent-gradient) border-box;
   box-shadow: 0 0 0 1px var(--accent-ring-orange),
               0 0 0 2px var(--accent-ring-blue),
-              0 12px 28px rgba(2,6,23,0.36);
+              0 12px 28px var(--shadow-dark);
   text-align: center;
 }
 
@@ -494,22 +504,24 @@ header { position: static; width: 100%; background: var(--bg); }
 }
 
 /* ===== SOCIALS / ICONS (single definition) ===== */
+/* ===== SOCIAL MEDIA LINKS (Unified Component) ===== */
 .socials {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: clamp(14px, 2vw, 28px);
   width: 100%;
-  /* corrected margin and added bottom spacing so socials nie przylegają do accordion */
   margin: 0;
   height: var(--social-size);
   padding: 24px;
-
   background: var(--card-gradient);
   border-radius: 14px;
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
   box-sizing: border-box;
+  
+  /* Desktop positioning - in layout flow */
+  position: static;
 }
 
 .icon-btn {
@@ -687,6 +699,9 @@ a:focus {
   html, body {
     height: auto;
     min-height: 100vh;
+  }
+  
+  body {
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -713,9 +728,10 @@ a:focus {
   .socials-mobile {
     position: -webkit-sticky;
     position: sticky;
-    top: 0;
+    top: -1px;
     z-index: 1000;
     justify-content: space-around;
+    margin-bottom: 16px;
   }
 
   .accordion { 
@@ -726,7 +742,7 @@ a:focus {
   }
   .accordion .acc-item {
     scroll-margin-top: calc(var(--social-size) + 18px);
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid var(--border-light);
   }
   .accordion .acc-static { margin-bottom: 18px; }
   .accordion .side-title { margin-top: 32px; margin-bottom: 16px; }

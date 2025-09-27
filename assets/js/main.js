@@ -5,9 +5,9 @@
   const DEBUG = false;
   const STATIC_ACCORDION_IDS = new Set(['kim-jestesmy']);
   const SOCIAL_GLOW_MAPPING = new Map([
-    ['jak-dowiem-sie-o-spotkaniu', [0, 1]],
-    ['jak-zlapac-kontakt', [1]],
-    ['co-to-wspolny-notes', [2]],
+    ['jak-sie-dowiem-o-spotkaniach', [0, 1]],  // Facebook + Messenger
+    ['jak-moge-zlapac-kontakt', [1]],          // Messenger
+    ['do-czego-uzywacie-onenote', [2]],        // OneNote
   ]);
   const SOCIAL_GLOW_CLASS = 'glow-twice';
   const SOCIAL_REDUCED_MOTION_TIMEOUT = 450;
@@ -432,53 +432,29 @@
 
   function getMobileScrollOffset() {
     if (!isMobileLayout()) return 0;
-
-    const header = document.querySelector('header');
+    
+    // Simple calculation: if socials are sticky, account for their height
     const socials = document.querySelector('.socials-mobile');
-    let safeTop = 0;
-
-    if (header) {
-      const headerRect = header.getBoundingClientRect();
-      safeTop = Math.max(safeTop, headerRect.bottom);
+    if (socials && socials.getBoundingClientRect().top <= 0) {
+      return socials.offsetHeight + 16; // 16px for margin/padding
     }
-
-    if (socials) {
-      const rect = socials.getBoundingClientRect();
-      const styles = window.getComputedStyle(socials);
-      const marginTop = parseFloat(styles.marginTop || '0');
-      const marginBottom = parseFloat(styles.marginBottom || '0');
-      const stickyHeight = rect.height + marginTop;
-      const socialBottom = rect.bottom + marginBottom;
-
-      safeTop = rect.top <= 0 ? Math.max(safeTop, stickyHeight) : Math.max(safeTop, socialBottom);
-    }
-
-    return Math.max(safeTop, 0);
+    
+    return 0;
   }
   function scrollAccordionTriggerIntoView(element, behavior) {
     if (!element) return;
 
-    if (!isMobileLayout()) {
-      element.scrollIntoView({ behavior, block: 'start', inline: 'nearest' });
-      return;
-    }
-
-    const targetItem = element.closest('.acc-item') || element;
     const scrollBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
-
-    if (typeof targetItem.scrollIntoView === 'function') {
-      try {
-        targetItem.scrollIntoView({ behavior: scrollBehavior, block: 'start', inline: 'nearest' });
-      } catch (_error) {
-        targetItem.scrollIntoView();
-      }
-    } else {
+    const targetItem = element.closest('.acc-item') || element;
+    
+    // Simple scroll with offset for mobile sticky socials
+    if (isMobileLayout()) {
       const offset = getMobileScrollOffset();
       const rect = targetItem.getBoundingClientRect();
-      const targetTop = Math.max(0, window.scrollY + rect.top - offset);
-      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-      const clampedTarget = Math.min(targetTop, maxScroll);
-      window.scrollTo({ top: clampedTarget, behavior: scrollBehavior });
+      const targetY = window.scrollY + rect.top - offset;
+      window.scrollTo({ top: Math.max(0, targetY), behavior: scrollBehavior });
+    } else {
+      element.scrollIntoView({ behavior: scrollBehavior, block: 'start' });
     }
   }
 
