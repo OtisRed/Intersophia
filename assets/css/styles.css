@@ -57,7 +57,7 @@
    final value is set in the main @media (max-width:960px) block below. */
 
 /* ===== BASE / LAYOUT ===== */
-html, body {
+h﻿tml, body {
   height: 100%;
   min-height: 100vh;
   margin: 0;
@@ -158,6 +158,8 @@ a { color: inherit; text-decoration: none; }
 .socials-desktop {
   position: static;
   top: auto;
+  z-index: initial;
+  align-self: stretch;
 }
 
 .mobile-footer {
@@ -184,7 +186,6 @@ header { position: static; width: 100%; background: var(--bg); }
   align-items: center;
   justify-content: flex-start;
   padding: 0 24px;
-  border-bottom: 1px solid var(--border);
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
@@ -429,8 +430,6 @@ header { position: static; width: 100%; background: var(--bg); }
 /* ===== ACCORDION / MOBILE ===== */
 .mobile {
   display: none;
-  flex: 1 1 auto;
-  overflow-y: auto;
 }
 .accordion { 
   background: var(--accordion-bg); /* use dedicated accordion color */
@@ -685,51 +684,55 @@ a:focus {
 
 /* ===== RESPONSIVE (mobile) ===== */
 @media (max-width: 960px) {
+  html, body {
+    height: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .container {
+    height: auto;
+    min-height: calc(100vh - var(--header-height));
+  }
+
   :root {
     --social-size: 82px;
   }
-  /* toggle layouts */
+
   .layout { display: none; }
+
   .mobile {
-    display: flex;
-    flex-direction: column;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    display: block;
+    padding-bottom: 32px;
   }
 
-  .mobile::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* header/logo adjustments */
   .logo-banner { justify-content: center; padding-left: 0; }
-
   .main { padding: 0; }
 
-  /* keep socials sticky per your exception */
-  .socials {
+  .socials-mobile {
     position: -webkit-sticky;
     position: sticky;
     top: 0;
-    z-index: 60;
-    margin: 0 0 10px 0;
-    width: 100%;
+    z-index: 1000;
     justify-content: space-around;
   }
 
-  /* accordion full-width inside container */
-  .accordion { width: 100%; margin: 10px 0 0 0; background: var(--accordion-bg); }
+  .accordion { 
+    width: 100%; 
+    margin: 0; 
+    background: var(--accordion-bg);
+    min-height: 100vh;
+  }
   .accordion .acc-item {
     scroll-margin-top: calc(var(--social-size) + 18px);
     border-top: 1px solid rgba(255,255,255,0.05);
   }
-  .accordion .acc-static {
-    margin-bottom: 18px;
-  }
+  .accordion .acc-static { margin-bottom: 18px; }
+  .accordion .side-title { margin-top: 32px; margin-bottom: 16px; }
+  .accordion .side-title:first-child { margin-top: 0; }
   .accordion .acc-item:first-of-type,
-  .accordion .side-title + .acc-item {
-    border-top: none;
-  }
+  .accordion .side-title + .acc-item { border-top: none; }
   .accordion .acc-btn {
     font-size: 16px;
     line-height: 1.35;
@@ -739,13 +742,9 @@ a:focus {
   }
   .accordion .acc-btn span:first-child { flex: 1 1 auto; }
   .accordion .acc-btn .chev { font-size: 1.1em; margin-left: 12px; }
-  .accordion .acc-body {
-    font-size: 15px;
-    padding: 18px 20px;
-  }
+  .accordion .acc-body { font-size: 15px; padding: 18px 20px; }
 
   .mobile-footer { gap: 12px; }
-
   .mobile-footer small {
     color: var(--muted);
     letter-spacing: 0.16em;
@@ -762,9 +761,7 @@ a:focus {
   }
 
   .mobile-footer a:hover,
-  .mobile-footer a:focus-visible {
-    color: var(--brand-orange);
-  }
+  .mobile-footer a:focus-visible { color: var(--brand-orange); }
 }
 
 /* ===== ACCESSIBILITY / FOCUS (CONSOLIDATED) =====

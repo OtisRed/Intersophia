@@ -15,18 +15,18 @@
     "items": [
       {
         "id": "jaka-panuje-atmosfera",
-        "q": "Jaka panuje u Was atmosfera?",
-        "a": "Swobodna i nieformalna. To czas dla nas, więc wykorzystujemy go na maksa, ale bez zbędnej spiny. Cenimy sobie otwartą dyskusję i wzajemny szacunek. Jesteśmy społecznością, a nie wersją demo korporacji."
+        "q": "Jaka panuje u was atmosfera?",
+        "a": "Swobodna i nieformalna. Spotkania koła to czas dla nas, więc wykorzystujemy go na maksa, ale bez zbędnej spiny. Cenimy sobie otwartą dyskusję na tematy, które sami sobie wybieramy i wzajemny szacunek. Lubimy się różnić. Jesteśmy społecznością, a nie wersją demo korporacji."
       },
       {
         "id": "czy-musze-nalezec-do-kola",
-        "q": "Czy muszę należeć do koła, żeby przyjść?",
-        "a": "A gdzie tam! Możesz wpadać, kiedy tylko zainteresuje Cię temat. Uczestnictwo wynika z chęci, a nie z przymusu. Jeśli wrócisz po dwóch miesiącach, super będzie Cię znowu zobaczyć!"
+        "q": "Czy muszę należeć do koła?",
+        "a": "A gdzie tam! Możesz wpadać, kiedy tylko zainteresuje Cię temat, który wybraliśmy sobie na tapetę. Uczestnictwo to wybór, a nie z przymus. Pewnie, że fajnie jeśli znajdziesz u nas swoje miejsce i będzie pojawiać się regularnie, ale jeśli chcesz wpaść jedynie raz na jakiś czas to też jest w porządku. Zawsze super będzie Cię widzieć!"
       },
       {
-        "id": "jak-dowiem-sie-o-spotkaniu",
-        "q": "Jak się dowiem o najbliższym spotkaniu?",
-        "a": "Najczęściej informujemy o spotkaniach na naszej grupie na Messengerze oraz przez ogłoszenia na stronie. Dołącz do grupy, by być na bieżąco."
+        "id": "jak-sie-dowiem-o-spotkaniach",
+        "q": "Jak się dowiem o spotkaniach?",
+        "a": "O kolejnych spotkaniach staramy się zawsze powiadamiać przez wydarzenie na fanpage’u, więc polub nas, a dostaniesz powiadomienie! Na bieżąco przegadujemy też tematy kolejnych spotkań na społeczności w Messengerze, także jeśli chcesz bardziej trzymać rękę na pulsie, albo dołożyć swoją cegiełkę to dołącz do kanału i przywitaj się krótko, byśmy mogli Cię poznać."
       }
     ]
   },
@@ -36,17 +36,17 @@
       {
         "id": "kiedy-i-gdzie-sie-spotykacie",
         "q": "Kiedy i gdzie się spotykacie?",
-        "a": "Spotkania odbywają się zazwyczaj około 17:00, aby mogli w nich uczestniczyć także studenci zaoczni. Naszą stałą miejscówką jest sala 319C na Towarowej 53 (starszy, żółty budynek przy przystanku). Zawsze mamy kwadrans akademicki na spóźnialskich, kawę, herbatę i coś słodkiego."
+        "a": "Spotkania odbywają się zazwyczaj około 17:00, aby mogli w nich uczestniczyć także studenci zaoczni. Naszą stałą miejscówką jest sala 319C na Towarowej 53 (starszy, żółty budynek przy przystanku). Zawsze mamy kwadrans akademicki na spóźnialskich, kawę, herbatę, a opiekun często przynosi wypieki narzeczonej."
       },
       {
         "id": "o-czym-rozmawiacie",
-        "q": "O czym rozmawiacie na spotkaniach?",
-        "a": "Każde spotkanie ma temat przewodni, który ustalamy wcześniej. Często inspirujemy się jakimś tekstem, filmem lub podcastem (to nie jest obowiązkowe!), żeby dyskusja była ciekawsza. Wszystkie materiały udostępniamy na naszej grupie na Messengerze."
+        "q": "O czym rozmawiacie?",
+        "a": "Każde spotkanie ma temat przewodni, który ustalamy wcześniej ne społeczności w Messengerze. Często inspirujemy się jakimś tekstem, filmem lub podcastem przed spotkaniem. Nie trzeba się przygotowywać, żeby przyjść na spotkanie ale dyskusja jest ciekawsza, kiedy mamy jakiś wspólny punkt zaczepienia. Także nie trzeba, ale warto, a wszystkie materiały udostępniamy na Messengerze, by były pod ręką."
       },
       {
         "id": "jak-prowadzicie-dyskusje",
         "q": "Jak prowadzicie dyskusje?",
-        "a": "Stawiamy na trzy filary: merytorykę (rozmawiamy o konkretach, ale nie musisz być ekspertem), otwartość (różnice w poglądach to dla nas wartość) i rozważność (słuchamy się nawzajem i dbamy o komfort rozmowy)."
+        "a": "Raczej swobodnie i jesteśmy szczególnie dumni z tego, że udało nam się zebrać grono bardzo różnych osób, często o sprzecznych poglądach, które jednak potrafią ze sobą rozmawiać i czerpać od siebie nawzajem. Udaje się, bo opieramy się na trzech filarach:\n\n* Merytoryka - staramy się rozmawiać o czymś. Nie trzeba być ekspertem, by zabrać do głos, ale warto umieć wyjaśnić swój punkt widzenia.\n\n* Otwartość - nie boimy się sprzecznych perspektyw. To normalne, że się różnimy. To, co jest nienormalne to jeśli przeszkadza na to rozmawiać.\n\n* Rozważność - słuchamy siebie nawzajem, by nie skrzywdzić kogoś, kto myśli inaczej lub może być wrażliwy na jakimś punkcie."
       },
       {
         "id": "co-robicie-oprocz-dyskusji",
@@ -61,17 +61,17 @@
       {
         "id": "czy-warto-dolaczyc",
         "q": "Czy warto dołączyć?",
-        "a": "Studia to idealny moment, by stać się po prostu ciekawym człowiekiem. Nasze koło to takie \"trzecie miejsce\" – przestrzeń na oddech od myślenia o karierze i okazja do humanistycznej refleksji. Wychodzisz bogatszy o nowe perspektywy i sposoby myślenia."
+        "a": "To zależy głównie od Ciebie. Studia nie muszą być tylko okresem zabawy, czy szykowania się na rynek pracy. To też jedna z ostatnich okazji, kiedy brak skrępowania prozą życia, pozwala eksplorować, eksperymentować i tak po prostu stawać się ciekawym człowiekiem. Nasze koło to takie \"[trzecie miejsce](https://pl.wikipedia.org/wiki/Trzecie_miejsce)\", gdzie możesz wziąć oddech, wyłączyć na chwilę pragmatyczne myślenie o karierze i otworzyć się na tę szerszą refleksję o naszym miejscu w świecie, o tym jak sobie ten świat układamy oraz z jakim skutkiem."
       },
       {
         "id": "jak-moge-sie-rozwinac",
         "q": "Jak mogę się rozwinąć?",
-        "a": "Uczymy się tu rzeczy, których nie ma w programie studiów: porządkowania myśli, argumentacji, publicznego zabierania głosu i przekonywania do swoich racji. Rozwijasz też umiejętności organizacji wydarzeń i pracy w zespole przy projektach, na których naprawdę Ci zależy."
+        "a": "Zazwyczaj gromadzimy osoby, dla których stymulacja intelektualna, wykraczająca poza banał i codzienną rutynę jest wartością samą w sobie. Przy okazji jednak uczymy się porządkować myśli, zabierać głos, przekonywać i być przekonywanym, bez animozji i przekrzykiwania się nawzajem. Wzbogocamy siebie nawzajem i tworzymy schematy myślenia, które nigdy nie wiadomo, kiedy mogą okazać się przydatne. Uczymy się też organizować rzeczy, na których samym nam zależy. Mów co chcesz… w naszym słowniku to cenne!"
       },
       {
-        "id": "a-bardziej-ekonomicznie",
-        "q": "A bardziej ekonomicznie?",
-        "a": "Tak. Dla osób z motywacją mamy konkretne wsparcie. Nasz opiekun pomaga w pisaniu tekstów akademickich, co realnie zwiększa szanse na stypendium. Dodatkowo, budżet koła przeznaczamy na nasz rozwój, finansując np. udział w konferencjach czy warsztatach."
+        "id": "a-bardziej-pragmatycznie",
+        "q": "A bardziej pragmatycznie?",
+        "a": "Jeśli udało Ci się dotrzeć do tego punktu, to znaczy, że wewnętrzna motywacja Ci nie obca, więc możemy też zdardzić, że nasz opiekun bardzo stara się nas wspierać w pisarstwie akademickim, które istotnie zwiększa szanse na zdobycie stypendium. Z kolei środki koła wydajemy na nasz własny rozwój, więc przez wsparcie finansowe, można złapać okazje, które byśmy ominęli gdybyśmy musieli je dźwignąć we własnym budżecie."
       }
     ]
   },
@@ -79,19 +79,19 @@
     "section": "Przynależność",
     "items": [
       {
-        "id": "jak-formalnie-dolaczyc",
+        "id": "jak-formalnie-dolaczyc-do-kola",
         "q": "Jak formalnie dołączyć do koła?",
-        "a": "Na maksa prosto. Jeśli wpadasz regularnie i czujesz się częścią naszej społeczności, to w zasadzie już jesteś \"nasz\". Formalnie członkiem można zostać po pojawieniu się na trzech kolejnych spotkaniach, ale jesteśmy elastyczni. Liczy się zaangażowanie i dobra atmosfera."
+        "a": "Jeśli przychodzisz na spotkania to pewnie dlatego, że sprawiają Ci jakąś frajdę. W którymś momencie pewnie poczujesz się, przynajmniej trochę jak u siebie. Nie, że pełen luz, ale orientujesz się, że znasz kilka osób po imieniu, przypominasz sobie o czym rozmawialiśmy tydzień wcześniej i nie obawiasz się zabrać głosu - a przynajmniej mniej niż na pierwszym spotkaniu. Formalnie, członkiem możesz zostać zjawiając się na trzech kolejnych spotkaniach, natomiast jeśli nie wyjdzie Ci ciągiem, a będzie jasnym, że czujesz się swobodnie w naszym towarzystwie, to nikt Ci nie odmówi członkostwa.\n\nW skrócie: liczy się Twoja obecność i zaangażowanie, a nie formalności."
       },
       {
         "id": "czy-moge-dolaczyc-w-srodku-semestru",
         "q": "Czy mogę dołączyć w środku semestru?",
-        "a": "Oczywiście! Jesteśmy otwarci na nowe osoby przez cały rok. Po prostu wpadnij. Na pewno będziemy chcieli Cię poznać, ale wszystko na luzie i bez stresu."
+        "a": "Oczywiście! Jesteśmy otwarci na nowe osoby przez cały rok. Po prostu wpadnij. Na pewno będziemy chcieli Cię poznać, ale wszystko na luzie i bez stresu. Członkostwo następuje przez przyległość - jeśli Ci się spodoba atmosfera to wraz z regularną obecnością na spotkania, w którymś momencie po prostu poczujesz się częścią koła."
       },
       {
-        "id": "jak-zlapac-kontakt",
-        "q": "Jak mogę złapać z Wami kontakt?",
-        "a": "Najłatwiej przez grupę na Messengerze lub pisząc wiadomość do opiekuna koła."
+        "id": "jak-moge-zlapac-kontakt",
+        "q": "Jak mogę złapać z wami kontakt?",
+        "a": "Najłatwiej dołączyć do społeczności na Messengerze. Tam gromadzimy wszystkich mniej i bardziej zainteresowanych działalnością koła, dzielimy się newsami z uczelni, ciekawostkami z prasy, rozmawiamy o bieżących wydarzeniach. No i tam każdy może wybrać sobie ustawienia powiadomień, które mu odpowiadają."
       }
     ]
   },
@@ -99,20 +99,21 @@
     "section": "Organizacja",
     "items": [
       {
-        "id": "jak-dziala-grupa-messenger",
-        "q": "Jak działa Wasza grupa na Facebooku/Messengerze?",
-        "a": "To nasze główne centrum komunikacji. Mamy tam kilka kanałów tematycznych: Ogłoszenia (info o spotkaniach), A to ciekawe! (luźna prasówka, memy), Materiały do spotkań (lektury do dyskusji), Intersophia (kanał organizacyjny) oraz Pisarstwo akademickie (wsparcie w pisaniu). Możesz dołączyć do tych, które Cię interesują."
+        "id": "jak-dziala-spolecznosc-na-messengerze",
+        "q": "Jak działa społeczność na Messengerze?",
+        "a": "To nasze główne centrum komunikacji. Pierwotnie społeczność była przyklejona do grupy na fb, ale facebook wygasił chaty społecznościowe i musimy rozkręcić społeczność od nowa w nowym formacie. Oprócz głównego kanału tworzymy też poboczne kanały tematyczne, tak by dyskusje na różne tematy nie zlewały się w jedno i żeby każde z nas mogło śledzić te kanały, które faktycznie nas interesują."
       },
       {
-        "id": "kim-jest-opiekun",
+        "id": "kim-jest-i-co-robi-opiekun-kola",
         "q": "Kim jest i co robi opiekun koła?",
-        "a": "Cześć! Nazywam się Krzysiek i jestem adiunktem w Katedrze Socjologii i Etyki Gospodarczej. Pomagam organizować spotkania, wspieram w kontaktach z uczelnią i doradzam przy realizacji Waszych projektów."
+        "a": "Opiekuje się nami Krzysiek z ramienia Katedry Socjologii i Etyki Biznesu. Jako opiekun stara się spinać naszą działalność w we względnie spójną całość. Uczestniczy w spotkaniach, staraj się animować dyskusje, często przynosi dla nas wypieki narzeczonej. Stara się otwierać nam ścieżki na uczelni, byśmy mogli realizować nasze pomysły i wydawać finanse z budżetu koła. Generalnie można do niego przyjść ze wszystkim i pomaga członkom koła w różnych sprawach akademickich, czy nie."
       },
       {
-        "id": "co-to-wspolny-notes",
-        "q": "Co to jest \"wspólny notes\"?",
-        "a": "To narzędzie online, w którym dzielimy się notatkami, pomysłami i materiałami z dyskusji. Dzięki niemu mamy łatwy dostęp do naszej wspólnej bazy wiedzy."
+        "id": "do-czego-uzywacie-onenote",
+        "q": "Do czego używacie OneNote?",
+        "a": "To wspólny notes online, w którym można tworzyć notatki i porządkować je na sekcje. Krzysiek stworzył je dla siebie, by ułatwić sobie wspieranie naszych działań, ale udostępnia go też jako publiczny zasób, byśmy mogli go przeglądać (każdy) i edytować (po zaproszeniu). Na telefonie to działa spoko tylko z aplikacją, ale na komputerze możesz łatwo przeglądać treści w przeglądarce."
       }
     ]
   }
 ]
+
