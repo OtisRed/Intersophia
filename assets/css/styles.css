@@ -66,15 +66,15 @@
   --border-strong: rgba(255,255,255,0.12);
   --overlay-dark: rgba(7,18,38,0.85);
   
-  /* Typography Scale (1.2 ratio - harmonious progression) */
-  --font-xs: clamp(10px, 0.9vw, 12px);     /* Fine print, captions */
-  --font-sm: clamp(12px, 1.1vw, 14px);     /* Small UI text */
-  --font-base: clamp(16px, 1.45vw, 18px);  /* Body text (current) */
-  --font-md: clamp(18px, 1.6vw, 20px);     /* Large body, small headings */
-  --font-lg: clamp(20px, 1.8vw, 24px);     /* Section headings */
-  --font-xl: clamp(24px, 2.2vw, 28px);     /* Page headings */
-  --font-2xl: clamp(32px, 3vw, 40px);      /* Hero text */
-  --font-3xl: clamp(40px, 4vw, 56px);      /* Display text */
+  /* Typography Scale - Mobile-first with larger base sizes */
+  --font-xs: clamp(12px, 1.2vw, 14px);     /* Fine print, captions - increased from 10-12px */
+  --font-sm: clamp(14px, 1.4vw, 16px);     /* Small UI text - increased from 12-14px */
+  --font-base: clamp(18px, 1.6vw, 20px);   /* Body text - increased from 16-18px */
+  --font-md: clamp(20px, 1.8vw, 22px);     /* Large body, small headings - increased from 18-20px */
+  --font-lg: clamp(22px, 2.0vw, 26px);     /* Section headings - increased from 20-24px */
+  --font-xl: clamp(26px, 2.4vw, 30px);     /* Page headings - increased from 24-28px */
+  --font-2xl: clamp(34px, 3.2vw, 42px);    /* Hero text - increased from 32-40px */
+  --font-3xl: clamp(42px, 4.2vw, 58px);    /* Display text - increased from 40-56px */
 }
 
 /* responsive tokens */
@@ -343,6 +343,18 @@ header { position: static; width: 100%; background: var(--bg); }
 .answer ul,
 .acc-body ul {
   padding-left: 18px;
+  margin: 12px 0;
+}
+
+.answer li,
+.acc-body li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.answer li:last-child,
+.acc-body li:last-child {
+  margin-bottom: 0;
 }
 
 /* ===== SIDEBAR ===== */
@@ -1011,8 +1023,8 @@ body.keyboard-navigation::after {
   .icon-btn,
   .acc-btn,
   .side-link {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 48px;  /* Increased from 44px for better touch */
+    min-width: 48px;
   }
   
   .icon-btn:active {
@@ -1024,6 +1036,15 @@ body.keyboard-navigation::after {
   .side-link:active {
     background: rgba(214,108,44,0.1);
     transform: scale(0.98);
+  }
+  
+  /* Additional mobile typography improvements */
+  .acc-body {
+    line-height: 1.75; /* More generous line spacing on mobile */
+  }
+  
+  .answer {
+    line-height: 1.8; /* Even more generous for main content */
   }
 }
 
@@ -1111,21 +1132,21 @@ body.keyboard-navigation::after {
   .accordion .side-title + .acc-item { border-top: none; }
   .accordion .acc-btn {
     font-size: var(--font-base);
-    line-height: 1.35;
-    padding: 12px 16px;
+    line-height: 1.4;
+    padding: 14px 18px;
     font-weight: 600;
     letter-spacing: 0.01em;
   }
   .accordion .acc-btn span:first-child { flex: 1 1 auto; }
   .accordion .acc-btn .chev { font-size: 1.1em; margin-left: 12px; }
-  .accordion .acc-body { font-size: var(--font-sm); padding: 18px 20px; }
+  .accordion .acc-body { font-size: var(--font-base); padding: 20px 22px; }
 
   .mobile-footer { gap: 12px; }
   .mobile-footer small {
     color: var(--muted);
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    font-size: 11px;
+    font-size: var(--font-sm);
     text-align: center;
     line-height: 1.8;
   }

@@ -146,6 +146,57 @@
   }
 
   /**
+   * Converts asterisk-based bullet points to proper HTML unordered lists
+   * @function formatBulletPoints
+   * @param {string} text - Text content that may contain asterisk bullet points
+   * @returns {string} HTML with proper <ul> and <li> elements
+   */
+  function formatBulletPoints(text) {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Split by lines and process bullet points
+    const lines = text.split('\n');
+    let result = [];
+    let inList = false;
+    let currentList = [];
+    
+    for (let line of lines) {
+      const trimmed = line.trim();
+      
+      // Check if line starts with asterisk bullet point
+      if (trimmed.startsWith('* ')) {
+        const bulletContent = trimmed.substring(2).trim();
+        if (!inList) {
+          inList = true;
+          currentList = [];
+        }
+        currentList.push(bulletContent);
+      } else {
+        // If we were in a list, close it
+        if (inList) {
+          const listItems = currentList.map(item => `<li>${item}</li>`).join('');
+          result.push(`<ul>${listItems}</ul>`);
+          inList = false;
+          currentList = [];
+        }
+        
+        // Add regular line (if not empty)
+        if (trimmed) {
+          result.push(line);
+        }
+      }
+    }
+    
+    // Close any remaining list
+    if (inList && currentList.length > 0) {
+      const listItems = currentList.map(item => `<li>${item}</li>`).join('');
+      result.push(`<ul>${listItems}</ul>`);
+    }
+    
+    return result.join('\n');
+  }
+
+  /**
    * Hydrates the application state with FAQ data and renders initial content
    * @function hydrate
    * @param {Array} sections - Raw FAQ sections from loadFaqData
@@ -378,7 +429,7 @@
 
     const body = document.createElement('div');
     body.className = 'acc-body card-surface';
-    body.innerHTML = entry.answer;
+    body.innerHTML = formatBulletPoints(entry.answer);
     panel.appendChild(body);
 
     setPanelAccessibilityState(panel, false);
@@ -393,7 +444,7 @@
     block.dataset.questionId = entry.id;
     block.setAttribute('tabindex', '0');
     block.setAttribute('role', 'region');
-    block.innerHTML = entry.answer;
+    block.innerHTML = formatBulletPoints(entry.answer);
     return block;
   }
 
