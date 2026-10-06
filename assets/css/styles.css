@@ -90,7 +90,14 @@ h﻿tml, body {
   color: var(--text);
   overflow: hidden;
 }
-a { color: inherit; text-decoration: none; }
+
+a {
+  display: inline;
+  color: var(--brand-orange);
+  background: color-mix(in srgb, var(--brand-orange) 20%, transparent);
+  border-radius: .25rem;
+  padding: 0px 2.5px;
+}
 
 /* ===== TYPOGRAPHY SYSTEM ===== */
 h1, h2, h3, h4, h5, h6 {
