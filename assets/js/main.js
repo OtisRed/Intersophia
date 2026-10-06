@@ -151,6 +151,12 @@
    * @param {string} text - Text content that may contain Markdown links and bullet points
    * @returns {string} HTML with proper <a>, <ul>, and <li> elements
    */
+/**
+ * Converts Markdown links and asterisk/dash-based bullet points to proper HTML
+ * @function formatMarkdown
+ * @param {string|Array} text - Text content that may contain Markdown links and bullet points
+ * @returns {string} HTML with proper <p>, <a>, <ul>, and <li> elements
+ */
   function formatMarkdown(text) {
     if (!text) return "";
 
@@ -160,31 +166,51 @@
         text = String(text);
     }
 
-    let html = text.replace(/\[([^\]]+)\]\s*\(\s*([^)]+?)\s*\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-
+    let html = text.replace(/\[([^\]]+)\]\s*\(\s*([^)]+?)\s*\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; color: #007bff;">$1</a>');
+    
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
     const lines = html.split(/(?:\r?\n|<br\s*\/?>)/i);
     
     let inList = false;
+    let inParagraph = false;
     let result = [];
 
     for (let line of lines) {
         let trimmedLine = line.trim();
 
         if (/^[-*]\s+(.*)/.test(trimmedLine)) {
+            if (inParagraph) {
+                result[result.length - 1] += '</p>';
+                inParagraph = false;
+            }
             if (!inList) {
                 result.push('<ul>');
                 inList = true;
             }
             result.push(trimmedLine.replace(/^[-*]\s+(.*)/, '<li>$1</li>'));
+            
+        } else if (trimmedLine === '') {
+            if (inList) {
+                result.push('</ul>');
+                inList = false;
+            }
+            if (inParagraph) {
+                result[result.length - 1] += '</p>';
+                inParagraph = false;
+            }
+            
         } else {
             if (inList) {
                 result.push('</ul>');
                 inList = false;
             }
-            if (trimmedLine !== '') {
-                result.push(trimmedLine + '<br>');
+            
+            if (!inParagraph) {
+                result.push('<p>' + trimmedLine);
+                inParagraph = true;
+            } else {
+                result[result.length - 1] += ' ' + trimmedLine;
             }
         }
     }
@@ -192,8 +218,11 @@
     if (inList) {
         result.push('</ul>');
     }
+    if (inParagraph) {
+        result[result.length - 1] += '</p>';
+    }
 
-    return result.join('\n').replace(/(<br>)+$/, '');
+    return result.join('\n');
   }
 
   /**
