@@ -486,7 +486,7 @@
     dom.viewer.setAttribute('tabindex', '0');
     dom.viewer.innerHTML = `
       <article class="question card-surface" data-question-id="${entry.id}" aria-label="${entry.question}">
-        <div class="answer">${entry.answer}</div>
+        <div class="answer">${formatMarkdown(entry.answer)}</div>
       </article>
     `;
 
