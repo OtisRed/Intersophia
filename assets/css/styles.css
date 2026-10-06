@@ -94,9 +94,13 @@ h﻿tml, body {
 a {
   display: inline;
   color: var(--brand-orange);
-  background: color-mix(in srgb, var(--brand-orange) 20%, transparent);
-  border-radius: .25rem;
-  padding: 0px 2.5px;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+a:hover, a:focus, a:active {
+  text-decoration-style: solid;
 }
 
 /* ===== TYPOGRAPHY SYSTEM ===== */
