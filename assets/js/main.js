@@ -160,7 +160,7 @@
         text = String(text);
     }
 
-    let html = text.replace(/\[([^\]]+)\]\s*\(\s*([^)]+?)\s*\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; color: #007bff;">$1</a>');
+    let html = text.replace(/\[([^\]]+)\]\s*\(\s*([^)]+?)\s*\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
