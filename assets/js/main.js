@@ -146,55 +146,43 @@
   }
 
   /**
-   * Converts asterisk-based bullet points to proper HTML unordered lists
-   * @function formatBulletPoints
-   * @param {string} text - Text content that may contain asterisk bullet points
-   * @returns {string} HTML with proper <ul> and <li> elements
+   * Converts Markdown links and asterisk/dash-based bullet points to proper HTML
+   * @function formatMarkdown
+   * @param {string} text - Text content that may contain Markdown links and bullet points
+   * @returns {string} HTML with proper <a>, <ul>, and <li> elements
    */
-  function formatBulletPoints(text) {
-    if (!text || typeof text !== 'string') return text;
+
+  function formatMarkdown(text) {
+    if (!text) return "";
     
-    // Split by lines and process bullet points
-    const lines = text.split('\n');
-    let result = [];
+    let html = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    const lines = html.split('\n');
     let inList = false;
-    let currentList = [];
-    
+    let result = [];
+
     for (let line of lines) {
-      const trimmed = line.trim();
-      
-      // Check if line starts with asterisk bullet point
-      if (trimmed.startsWith('* ')) {
-        const bulletContent = trimmed.substring(2).trim();
-        if (!inList) {
-          inList = true;
-          currentList = [];
+        if (/^\s*[-*]\s+(.*)/.test(line)) {
+            if (!inList) {
+                result.push('<ul>'); 
+                inList = true;
+            }
+            result.push(line.replace(/^\s*[-*]\s+(.*)/, '<li>$1</li>'));
+        } else {
+            if (inList) {
+                result.push('</ul>'); 
+                inList = false;
+            }
+            result.push(line);
         }
-        currentList.push(bulletContent);
-      } else {
-        // If we were in a list, close it
-        if (inList) {
-          const listItems = currentList.map(item => `<li>${item}</li>`).join('');
-          result.push(`<ul>${listItems}</ul>`);
-          inList = false;
-          currentList = [];
-        }
-        
-        // Add regular line (if not empty)
-        if (trimmed) {
-          result.push(line);
-        }
-      }
     }
     
-    // Close any remaining list
-    if (inList && currentList.length > 0) {
-      const listItems = currentList.map(item => `<li>${item}</li>`).join('');
-      result.push(`<ul>${listItems}</ul>`);
+    if (inList) {
+        result.push('</ul>');
     }
-    
+
     return result.join('\n');
-  }
+}
 
   /**
    * Hydrates the application state with FAQ data and renders initial content
@@ -429,7 +417,7 @@
 
     const body = document.createElement('div');
     body.className = 'acc-body card-surface';
-    body.innerHTML = formatBulletPoints(entry.answer);
+    body.innerHTML = formatMarkdown(entry.answer);
     panel.appendChild(body);
 
     setPanelAccessibilityState(panel, false);
@@ -444,7 +432,7 @@
     block.dataset.questionId = entry.id;
     block.setAttribute('tabindex', '0');
     block.setAttribute('role', 'region');
-    block.innerHTML = formatBulletPoints(entry.answer);
+    block.innerHTML = formatMarkdown(entry.answer);
     return block;
   }
 
