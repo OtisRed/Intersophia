@@ -151,29 +151,41 @@
    * @param {string} text - Text content that may contain Markdown links and bullet points
    * @returns {string} HTML with proper <a>, <ul>, and <li> elements
    */
-
   function formatMarkdown(text) {
     if (!text) return "";
-    
-    let html = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    const lines = html.split('\n');
+    if (Array.isArray(text)) {
+        text = text.join('\n');
+    } else {
+        text = String(text);
+    }
+
+    let html = text.replace(/\[([^\]]+)\]\s*\(\s*([^)]+?)\s*\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; color: #007bff;">$1</a>');
+
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+    const lines = html.split(/(?:\r?\n|<br\s*\/?>)/i);
+    
     let inList = false;
     let result = [];
 
     for (let line of lines) {
-        if (/^\s*[-*]\s+(.*)/.test(line)) {
+        let trimmedLine = line.trim();
+
+        if (/^[-*]\s+(.*)/.test(trimmedLine)) {
             if (!inList) {
-                result.push('<ul>'); 
+                result.push('<ul>');
                 inList = true;
             }
-            result.push(line.replace(/^\s*[-*]\s+(.*)/, '<li>$1</li>'));
+            result.push(trimmedLine.replace(/^[-*]\s+(.*)/, '<li>$1</li>'));
         } else {
             if (inList) {
-                result.push('</ul>'); 
+                result.push('</ul>');
                 inList = false;
             }
-            result.push(line);
+            if (trimmedLine !== '') {
+                result.push(trimmedLine + '<br>');
+            }
         }
     }
     
@@ -181,8 +193,8 @@
         result.push('</ul>');
     }
 
-    return result.join('\n');
-}
+    return result.join('\n').replace(/(<br>)+$/, '');
+  }
 
   /**
    * Hydrates the application state with FAQ data and renders initial content
