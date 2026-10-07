@@ -371,9 +371,9 @@
     const footer = document.createElement('footer');
     footer.className = 'sidebar-footer';
     footer.innerHTML = `
-      <small>© 2025 | DESIGNED BY<br>
+      <small>© 2026 | DESIGNED BY<br>
         <a href="https://www.linkedin.com/in/krzysztof-durczak/" target="_blank" rel="noopener">KRZYSZTOF DURCZAK</a> |
-        <a href="https://github.com/OtisRed" target="_blank" rel="noopener">OTISRED</a>
+        <a href="https://github.com/Jasiu06" target="_blank" rel="noopener">JAN SOCHA</a>
       </small>
     `;
     dom.sidebar.appendChild(footer);
