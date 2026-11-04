@@ -112,6 +112,7 @@
    * @function init
    */
   async function init() {
+    renderFooter(document.querySelector('.mobile-footer'));
     bindGlobalListeners();
     
     // Show loading state immediately for better perceived performance
@@ -358,6 +359,22 @@
     }
   }
 
+  function renderFooter(container) {
+    if (!container) return;
+    const small = document.createElement('small');
+    small.append(document.createTextNode(SITE_CONTENT.footer.heading), document.createElement('br'));
+    SITE_CONTENT.footer.authors.forEach((author, index) => {
+      if (index) small.append(document.createTextNode(' | '));
+      const link = document.createElement('a');
+      link.href = author.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = author.name;
+      small.append(link);
+    });
+    container.replaceChildren(small);
+  }
+
   function ensureSidebarContent() {
     if (!dom.sidebar) return null;
 
@@ -370,12 +387,7 @@
 
     const footer = document.createElement('footer');
     footer.className = 'sidebar-footer';
-    footer.innerHTML = `
-      <small>© 2026 | DESIGNED BY<br>
-        <a href="https://www.linkedin.com/in/krzysztof-durczak/" target="_blank" rel="noopener">KRZYSZTOF DURCZAK</a> |
-        <a href="https://github.com/Jasiu06" target="_blank" rel="noopener">JAN SOCHA</a>
-      </small>
-    `;
+    renderFooter(footer);
     dom.sidebar.appendChild(footer);
 
     state.elements.sidebar.clear();
