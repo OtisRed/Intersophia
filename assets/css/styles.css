@@ -1223,7 +1223,7 @@ body.keyboard-navigation::after {
 
 /* Login is the final resource shortcut. */
 .icon-btn.login-icon {
-  color: #ffab72;
+  color: var(--brand-orange);
 }
 
 .login-icon svg {

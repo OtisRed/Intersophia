@@ -1,4 +1,4 @@
-:root{color-scheme:dark;--bg:#000;--card:#0b1926;--border:#2c4052;--text:#e6eef8;--muted:#aebdca;--accent:#ffab72;--blue:#a8d8ff}
+:root{color-scheme:dark;--bg:#000;--card:#0b1926;--border:#2c4052;--text:#e6eef8;--muted:#aebdca;--accent:#D66C2C;--blue:#a8d8ff}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sans-serif}
 .membership-header,.membership-main {
@@ -18,7 +18,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .membership-home {
   display:block;
   width:clamp(156px,32vw,280px);
-  color:#ffab72;
+  color:var(--accent);
   text-decoration:none;
 }
 
@@ -46,7 +46,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
   border:1px solid #4d382a;
   border-radius:50%;
   background:#0b1926;
-  color:#ffab72;
+  color:var(--accent);
   cursor:pointer;
 }
 
@@ -108,7 +108,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 
 .member-sidebar h1 {
   margin:0 0 12px;
-  color:#ffab72;
+  color:var(--accent);
   font-size:.85rem;
   font-weight:750;
   letter-spacing:.1em;
@@ -121,7 +121,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .member-sidebar a {
   display:block;
   padding:10px 12px;
-  border-left:3px solid #d66c2c;
+  border-left:3px solid var(--accent);
   border-radius:6px;
   background:#142a3a;
   color:var(--text);
