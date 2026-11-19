@@ -1,0 +1,27 @@
+[Unit]
+Description=Intersophia candidate accounts on staging
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=intersophia-accounts
+Group=intersophia-accounts
+WorkingDirectory=/opt/intersophia-accounts/current
+StateDirectory=intersophia-accounts
+StateDirectoryMode=0700
+Environment=INTERSOPHIA_DB=/var/lib/intersophia-accounts/staging.sqlite
+Environment=INTERSOPHIA_ORIGIN=https://dev.intersophia.pl
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/intersophia-accounts/staging.env
+ExecStartPre=/opt/intersophia-accounts/venv/bin/flask --app membership:create_app init-db
+ExecStart=/opt/intersophia-accounts/venv/bin/gunicorn --bind 127.0.0.1:8091 --workers 2 --worker-tmp-dir /tmp membership:create_app()
+Restart=on-failure
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
