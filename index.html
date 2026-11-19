@@ -17,41 +17,39 @@
   <header>
     <div class="bar">
       <div class="logo-banner">
-        <img src="assets/logo.svg" alt="Intersophia — logotyp" class="logo-img" loading="eager" decoding="async" />
+        <svg class="logo" viewBox="0 0 1027 257" role="img" aria-label="Logo">
+          <use href="assets/logo.svg"/>
+        </svg>
       </div>
     </div>
   </header>
 
   <!-- ===== MAIN CONTENT ===== -->
   <main class="container">
-    <!-- Desktop/tablet layout: content + left sidebar -->
-    <div class="layout" id="desktopLayout" aria-label="Widok szeroki">
-      <section class="main" id="content">
-        <nav class="socials socials-desktop card-surface" aria-label="Szybkie linki">
-          <a class="icon-btn" href="https://www.facebook.com/intersophia" target="_blank" rel="noopener" aria-label="Facebook">
-            <img src="assets/Facebook.svg" alt="" aria-hidden="true" loading="lazy">
-          </a>
-          <a class="icon-btn" href="https://m.me/ch/Abb04z6Dhz7iKNfP/" target="_blank" rel="noopener" aria-label="Messenger">
-            <img src="assets/Messenger.svg" alt="" aria-hidden="true" loading="lazy">
-          </a>
-          <a class="icon-btn" href="https://www.instagram.com/skn.intersophia/" target="_blank" rel="noopener" aria-label="Instagram">
-            <img src="assets/instagram.svg" alt="" aria-hidden="true" loading="lazy">
-          </a>
-          <a class="icon-btn" href="https://1drv.ms/o/c/6656db8f5421060d/EnO98xyOcmhJuqjap9eDRn0BdEY9alkwBZRFfdJh7QPxWw?e=xREEa6" target="_blank" rel="noopener" aria-label="OneNote">
-            <img src="assets/OneNote.svg" alt="" aria-hidden="true" loading="lazy">
-          </a>
-          <a class="icon-btn" href="https://discord.gg/ychQX2tNx" target="_blank" rel="noopener" aria-label="Discord">
-            <img src="assets/Discord.svg" alt="" aria-hidden="true" loading="lazy">
-          </a>
-        </nav>
-        <div class="main-content">
-          <div class="question-display" id="contentInner" role="region" aria-live="polite"></div>
-        </div>
-      </section>
-  <aside class="sidebar card-surface" id="sidebar" aria-label="Nawigacja po pytaniach"></aside>
-    </div>
+    <section class="layout-main">
+      <nav class="socials socials-desktop card-surface" aria-label="Szybkie linki">
+        <a class="icon-btn" href="https://www.facebook.com/intersophia" target="_blank" rel="noopener" aria-label="Facebook">
+          <img src="assets/Facebook.svg" alt="" aria-hidden="true" loading="lazy">
+        </a>
+        <a class="icon-btn" href="https://m.me/ch/Abb04z6Dhz7iKNfP/" target="_blank" rel="noopener" aria-label="Messenger">
+          <img src="assets/Messenger.svg" alt="" aria-hidden="true" loading="lazy">
+        </a>
+        <a class="icon-btn" href="https://www.instagram.com/skn.intersophia/" target="_blank" rel="noopener" aria-label="Instagram">
+          <img src="assets/instagram.svg" alt="" aria-hidden="true" loading="lazy">
+        </a>
+        <a class="icon-btn" href="https://1drv.ms/o/c/6656db8f5421060d/EnO98xyOcmhJuqjap9eDRn0BdEY9alkwBZRFfdJh7QPxWw?e=xREEa6" target="_blank" rel="noopener" aria-label="OneNote">
+          <img src="assets/OneNote.svg" alt="" aria-hidden="true" loading="lazy">
+        </a>
+        <a class="icon-btn" href="https://discord.gg/ychQX2tNx" target="_blank" rel="noopener" aria-label="Discord">
+          <img src="assets/Discord.svg" alt="" aria-hidden="true" loading="lazy">
+        </a>
+      </nav>
+      <div class="main-content">
+        <div class="question-display" id="contentInner" role="region" aria-live="polite"></div>
+      </div>
+      <div class="sidebar card-surface" id="sidebar" role="navigation" aria-label="Nawigacja po pytaniach"></div>
+    </section>
 
-    <!-- Mobile layout: accordion list -->
     <section class="mobile" aria-label="Widok mobilny">
       <nav class="socials socials-mobile card-surface" aria-label="Szybkie linki">
         <a class="icon-btn" href="https://www.facebook.com/intersophia" target="_blank" rel="noopener" aria-label="Facebook">

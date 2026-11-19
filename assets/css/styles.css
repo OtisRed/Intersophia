@@ -15,6 +15,7 @@
   --light-gray: #0b1724;
 
   /* Page / theme tokens (dark as default) */
+  --accent-color: var(--brand-orange);
   --page-bg: var(--black);
   --header-bg: var(--black);
   --social-bg: #253b4d;
@@ -32,10 +33,10 @@
   --shadow: 0 10px 30px var(--shadow-light);
   --radius: 16;
 
-  --header-height: 126px;
+  --header-height: 150px;
   --social-size: 92px;
   --social-gap: 8px;
-  
+
   /* Animation durations - keep in sync with JS CONFIG */
   --animation-duration: 300ms;
   --accordion-transition: 400ms;
@@ -55,7 +56,7 @@
   --accent-gradient: linear-gradient(140deg, rgba(214,108,44,0.32) 0%, rgba(74,147,195,0.26) 100%);
   --accent-ring-orange: rgba(214,108,44,0.18);
   --accent-ring-blue: rgba(74,147,195,0.16);
-  
+
   /* Consolidated RGBA values */
   --shadow-dark: rgba(2,6,23,0.36);
   --shadow-primary: rgba(2,6,23,0.4);
@@ -65,7 +66,7 @@
   --border-medium: rgba(255,255,255,0.08);
   --border-strong: rgba(255,255,255,0.12);
   --overlay-dark: rgba(7,18,38,0.85);
-  
+
   /* Typography Scale - Mobile-first with larger base sizes */
   --font-xs: clamp(12px, 1.2vw, 14px);     /* Fine print, captions - increased from 10-12px */
   --font-sm: clamp(14px, 1.4vw, 16px);     /* Small UI text - increased from 12-14px */
@@ -81,7 +82,7 @@
 @media (max-width: 600px) { :root { --header-height: 110px; } }
 
 /* ===== BASE / LAYOUT ===== */
-h﻿tml, body {
+html, body {
   height: 100%;
   min-height: 100vh;
   margin: 0;
@@ -93,7 +94,7 @@ h﻿tml, body {
 
 a {
   display: inline;
-  color: var(--brand-orange);
+  color: var(--accent-color);
   text-decoration-line: underline;
   text-decoration-style: dotted;
   text-underline-offset: 3px;
@@ -140,10 +141,17 @@ p {
   max-width: 1200px;
   height: calc(100vh - var(--header-height));
   margin: 0 auto;
-  padding: 0 24px 32px;
+  padding: 24px 24px 32px;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+}
+
+.layout-main {
+  display: grid;
+  grid-template:
+    "sidebar socials" auto
+    "sidebar content" minmax(0, 1fr) /
+    minmax(320px, 40%) minmax(0, 60%);
+  gap: 24px;
 }
 
 .card-surface {
@@ -178,17 +186,8 @@ p {
               0 12px 28px var(--shadow-dark);
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 40%) minmax(0, 60%);
-  gap: 24px;
-  align-items: stretch;
-  margin-top: 24px;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
 .main {
+  grid-area: main;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -224,10 +223,16 @@ p {
   }
 }
 .socials-desktop {
+  grid-area: socials;
   position: static;
   top: auto;
   z-index: initial;
   align-self: stretch;
+}
+
+.main-content {
+  grid-area: content;
+  align-self: start;
 }
 
 .mobile-footer {
@@ -264,28 +269,27 @@ header { position: static; width: 100%; background: var(--bg); }
   width: 100%;
   height: var(--header-height);
   min-height: var(--header-height);
-  display:flex;
-  align-items:center;
-  justify-content:flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   padding: 0;
   box-shadow: var(--shadow);
   box-sizing: border-box;
-
-  /* make the banner background explicitly black */
   background: var(--header-bg);
 }
 
-/* keep logo image sizing (no change) */
-.logo-banner img {
+.logo-banner .logo {
   max-width: 84%;
   max-height: calc(var(--header-height) - 42px);
   height: auto;
   width: auto;
   display: block;
   transition: max-width 0.3s, height 0.3s;
+  display: block;
 }
+
 @media (max-width: 600px) {
-  .logo-banner img {
+  .logo-banner .logo {
     max-width: 92%;
     max-height: calc(var(--header-height) - 32px);
   }
@@ -307,7 +311,7 @@ header { position: static; width: 100%; background: var(--bg); }
   overflow-y: auto;
   scrollbar-gutter: stable both-edges;
   min-height: 0;
-  max-height: calc(100vh - var(--header-height) - 162px);
+  max-height: calc(100vh - var(--header-height) - var(--social-size) - 72px)
 }
 
 .question.card-surface {
@@ -370,8 +374,7 @@ header { position: static; width: 100%; background: var(--bg); }
 
 /* ===== SIDEBAR ===== */
 .sidebar {
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: sidebar;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -445,7 +448,7 @@ header { position: static; width: 100%; background: var(--bg); }
 .sidebar-footer a:focus-visible,
 .mobile-footer a:hover,
 .mobile-footer a:focus-visible {
-  color: var(--brand-orange);
+  color: var(--accent-color);
 }
 
 .side-section + .side-section {
@@ -458,7 +461,7 @@ header { position: static; width: 100%; background: var(--bg); }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--brand-orange);
+  color: var(--accent-color);
   margin: 0 0 12px;
 }
 
@@ -589,7 +592,7 @@ header { position: static; width: 100%; background: var(--bg); }
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
   box-sizing: border-box;
-  
+
   /* Desktop positioning - in layout flow */
   position: static;
 }
@@ -684,7 +687,7 @@ header { position: static; width: 100%; background: var(--bg); }
 
 /* accordion button highlighted */
 .acc-btn.is-active {
-  background: var(--brand-orange);
+  background: var(--accent-color);
   color: var(--white);
   box-shadow: none;
 }
@@ -693,7 +696,7 @@ header { position: static; width: 100%; background: var(--bg); }
 /* Full-element "lit" state (higher specificity) */
 .accordion .acc-btn.is-active,
 .accordion .acc-btn.is-active * {
-  background: var(--brand-orange) !important;
+  background: var(--accent-color) !important;
   color: var(--white) !important;
   box-shadow: none !important;
 }
@@ -707,14 +710,14 @@ header { position: static; width: 100%; background: var(--bg); }
 /* Sidebar links and icon buttons full-bg */
 #sidebar .side-link.is-active,
 #sidebar .side-link.active {
-  background: var(--brand-orange) !important;
+  background: var(--accent-color) !important;
   color: var(--white) !important;
   box-shadow: 0 4px 14px rgba(0,0,0,0.10) !important;
 }
 
 .icon-btn.is-active,
 .icon-btn.is-active * {
-  background: var(--brand-orange) !important;
+  background: var(--accent-color) !important;
   color: var(--white) !important;
   box-shadow: 0 6px 18px rgba(0,0,0,0.12) !important;
 }
@@ -781,7 +784,7 @@ header { position: static; width: 100%; background: var(--bg); }
 .acc-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(214,108,44,0.4), inset 0 0 0 2px rgba(214,108,44,0.2);
-  border-color: var(--brand-orange);
+  border-color: var(--accent-color);
 }
 
 .acc-btn:focus:not(:focus-visible) {
@@ -803,7 +806,7 @@ header { position: static; width: 100%; background: var(--bg); }
 /* Keyboard navigation visual enhancements */
 .side-link[aria-current="true"] {
   background: rgba(214,108,44,0.15);
-  border-left: 3px solid var(--brand-orange);
+  border-left: 3px solid var(--accent-color);
 }
 
 .question-display:focus-visible {
@@ -921,7 +924,7 @@ body.keyboard-navigation::after {
 }
 
 .error-state h2 {
-  color: var(--brand-orange);
+  color: var(--accent-color);
   margin-bottom: 16px;
   font-size: var(--font-xl);
 }
@@ -933,7 +936,7 @@ body.keyboard-navigation::after {
 }
 
 .error-retry-btn {
-  background: var(--brand-orange);
+  background: var(--accent-color);
   color: var(--white);
   border: none;
   padding: 12px 24px;
@@ -1013,17 +1016,17 @@ body.keyboard-navigation::after {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  
+
   .loading-skeleton * {
     animation: none !important;
   }
-  
+
   .content-fade-out,
   .content-fade-in {
     animation: none !important;
     transition: none !important;
   }
-  
+
   .question-animate {
     animation: none !important;
   }
@@ -1037,23 +1040,23 @@ body.keyboard-navigation::after {
     min-height: 48px;  /* Increased from 44px for better touch */
     min-width: 48px;
   }
-  
+
   .icon-btn:active {
     background: rgba(214,108,44,0.2);
     transform: scale(0.95);
   }
-  
+
   .acc-btn:active,
   .side-link:active {
     background: rgba(214,108,44,0.1);
     transform: scale(0.98);
   }
-  
+
   /* Additional mobile typography improvements */
   .acc-body {
     line-height: 1.75; /* More generous line spacing on mobile */
   }
-  
+
   .answer {
     line-height: 1.8; /* Even more generous for main content */
   }
@@ -1066,7 +1069,7 @@ body.keyboard-navigation::after {
   .side-link {
     border: 2px solid currentColor;
   }
-  
+
   .card-surface {
     border: 1px solid var(--border);
   }
@@ -1083,16 +1086,13 @@ body.keyboard-navigation::after {
   }
 }
 
-/* Optional: ensure focus-visible still usable for keyboard users later:
-   you can replace the above with a subtler rule instead of removing outlines entirely. */
-
 /* ===== RESPONSIVE (mobile) ===== */
 @media (max-width: 960px) {
   html, body {
     height: auto;
     min-height: 100vh;
   }
-  
+
   body {
     overflow-x: hidden;
     overflow-y: auto;
@@ -1107,7 +1107,7 @@ body.keyboard-navigation::after {
     --social-size: 82px;
   }
 
-  .layout { display: none; }
+  .layout-main { display: none; }
 
   .mobile {
     display: block;
@@ -1120,7 +1120,7 @@ body.keyboard-navigation::after {
   .socials-mobile {
     position: -webkit-sticky;
     position: sticky;
-    top: -1px;
+    top: 6px;
     z-index: 1000;
     justify-content: space-around;
     margin-bottom: 16px;
@@ -1169,7 +1169,7 @@ body.keyboard-navigation::after {
   }
 
   .mobile-footer a:hover,
-  .mobile-footer a:focus-visible { color: var(--brand-orange); }
+  .mobile-footer a:focus-visible { color: var(--accent-color); }
 }
 
 /* ===== ACCESSIBILITY / FOCUS (CONSOLIDATED) =====
@@ -1178,7 +1178,7 @@ body.keyboard-navigation::after {
 .acc-btn:focus { outline: none; }
 
 .acc-btn:focus-visible {
-  box-shadow: 0 0 0 3px var(--brand-orange);
+  box-shadow: 0 0 0 3px var(--accent-color);
   border-radius: 10px;
   z-index: 4;
 }
@@ -1192,7 +1192,7 @@ body.keyboard-navigation::after {
   top: 8px;
   bottom: 8px;
   border-radius: 8px;
-  box-shadow: 0 0 0 3px var(--brand-orange);
+  box-shadow: 0 0 0 3px var(--accent-color);
   opacity: 0;
   pointer-events: none;
   transition: opacity .12s ease;
