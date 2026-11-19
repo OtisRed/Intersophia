@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{% if welcome %}Witaj w Intersophii{% else %}Panel członka koła{% endif %}{% endblock %}
+{% block content %}
+{% if welcome %}
+  <h1 id="title">Witaj w Intersophii</h1>
+  <p class="membership-copy">Tu pojawią się zasady naszej społeczności.</p>
+  <form method="post" action="{{ url_for('panel') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="action" value="welcome">
+    <button class="membership-action membership-send" type="submit">Rozumiem</button>
+  </form>
+{% else %}
+  <h1 id="title">Panel członka koła</h1>
+{% endif %}
+<form method="post" action="{{ url_for('logout') }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button class="membership-later" type="submit">Wyloguj się</button>
+</form>
+{% endblock %}

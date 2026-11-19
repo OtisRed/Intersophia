@@ -1,6 +1,6 @@
-# Staging candidate flow
+# Staging member flow
 
-The application adds accounts for invited candidates only. Submitting a declaration records a pending application. Member access and membership decisions are out of scope.
+The application gives invited users basic member access when they log in. The first visit shows a placeholder for community rules and a “Rozumiem” button. This only dismisses the welcome screen. There is no declaration submission or approval. The old declaration table and template are kept temporarily but are no longer used by the panel.
 
 ## Local verification
 
@@ -19,4 +19,4 @@ Issue a test invitation under the service account with the same private environm
 flask --app membership:create_app invite TEST_ACCOUNT@gmail.com --hours 48
 ```
 
-Share the output directly with the tester. Keep real invite links and account addresses out of PRs and logs. Run the browser smoke with the invited Google account and confirm that a different Gmail cannot claim it, the candidate can submit only once, and the pending state persists after logout and login.
+Share the output directly with the tester. Keep real invite links and account addresses out of PRs and logs. Run the browser smoke with the invited Google account and confirm that a different Gmail cannot claim it, “Rozumiem” opens the member panel, and the welcome screen is skipped after logout and login.

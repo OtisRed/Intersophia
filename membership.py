@@ -1,4 +1,4 @@
-"""Invite-only membership applications for Intersophia."""
+"""Invite-only member accounts for Intersophia."""
 import hashlib
 import os
 import re
@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS invitations (
     email TEXT NOT NULL,
     expires_at INTEGER NOT NULL,
     used_by INTEGER REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS welcome_acknowledgements (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id)
 );
 CREATE TABLE IF NOT EXISTS declarations (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
@@ -194,19 +197,15 @@ def create_app(settings=None):
             return redirect(url_for("login"), code=303)
         if request.method == "POST":
             require_csrf()
-            name = request.form.get("name", "").strip()
-            if not 1 <= len(name) <= 120 or any(ord(char) < 32 for char in name):
-                return render_template("panel.html", user=user, declaration=None, csrf=csrf_token(),
-                                       error="Podaj imię i nazwisko (maksymalnie 120 znaków)."), 400
+            if request.form.get("action") != "welcome":
+                abort(400)
             with db():
-                db().execute(
-                    "INSERT INTO declarations(user_id,name,submitted_at) VALUES (?,?,?) "
-                    "ON CONFLICT(user_id) DO NOTHING",
-                    (user["id"], name, int(time.time())),
-                )
+                db().execute("INSERT OR IGNORE INTO welcome_acknowledgements VALUES (?)", (user["id"],))
             return redirect(url_for("panel"), code=303)
-        declaration = db().execute("SELECT * FROM declarations WHERE user_id=?", (user["id"],)).fetchone()
-        return render_template("panel.html", user=user, declaration=declaration, csrf=csrf_token())
+        acknowledged = db().execute(
+            "SELECT 1 FROM welcome_acknowledgements WHERE user_id=?", (user["id"],)
+        ).fetchone()
+        return render_template("member.html", welcome=not acknowledged, csrf=csrf_token())
 
     @app.post("/wyloguj")
     def logout():
@@ -216,7 +215,7 @@ def create_app(settings=None):
 
     @app.get("/auth/health")
     def health():
-        db().execute("SELECT count(*) FROM declarations").fetchone()
+        db().execute("SELECT count(*) FROM welcome_acknowledgements").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 
