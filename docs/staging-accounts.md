@@ -13,6 +13,14 @@ Create a Python virtual environment, install `requirements.txt`, then run `pytho
 - Create the private root-owned mode-0600 `/etc/intersophia-accounts/staging.env` containing a random `INTERSOPHIA_SESSION_KEY` of at least 32 characters. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from the staging OAuth Web application. The callback is exactly `https://dev.intersophia.pl/auth/google/callback`. Use scopes `openid email profile`. Keep the client and database separate from production.
 - Start the service. Run `nginx -t` before reloading. Check `/auth/health` and the public FAQ. `google_configured: false` means the Google integration cannot yet be exercised. Replacing the backend version and reloading the service is a separate operation from the current static publishing timer.
 
+To assign the first Opiekun after their normal invited Google sign-in, run
+`flask --app membership:create_app bootstrap-guardian <gmail>` with the staging
+service account, working directory and private environment. This operation
+requires an existing active account, is idempotent for that account and refuses
+to assign a second Opiekun. Use the Dostęp tab to assign or remove the Zarząd
+role or revoke panel access. Revocation applies on the next authenticated request
+and prevents future sign-ins by that account.
+
 Issue a test invitation under the service account with the same private environment and working directory:
 
 ```sh

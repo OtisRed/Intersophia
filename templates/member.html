@@ -1,15 +1,24 @@
 {% extends "base.html" %}
-{% block title %}{% if welcome %}Witaj w Intersophii{% else %}Zaproś · Panel członka koła{% endif %}{% endblock %}
+{% block title %}{% if welcome %}Witaj w Intersophii{% else %}{{ "Dostęp" if access_view else "Zaproś" }} · Panel członka koła{% endif %}{% endblock %}
 {% block header_actions %}{% include "logout.html" %}{% endblock %}
 {% block main %}
 {% if welcome %}{{ super() }}{% else %}
 <main class="membership-main member-layout">
   <aside class="member-sidebar">
     <h1>Panel członka koła</h1>
+    <p class="member-role">{{ role_labels[user.role] }}</p>
     <nav aria-label="Panel członka">
-      <ul><li><a href="{{ url_for('panel') }}" aria-current="page">Zaproś</a></li></ul>
+      <ul>
+        <li><a href="{{ url_for('panel') }}"{% if not access_view %} aria-current="page"{% endif %}>Zaproś</a></li>
+        {% if user.role == "guardian" %}
+        <li><a href="{{ url_for('panel', widok='dostep') }}"{% if access_view %} aria-current="page"{% endif %}>Dostęp</a></li>
+        {% endif %}
+      </ul>
     </nav>
   </aside>
+  {% if access_view %}
+  {% include "member-access.html" %}
+  {% else %}
   <section class="membership-card member-content" aria-labelledby="invite-title">
     <h2 id="invite-title">Zaproś do Intersophii</h2>
     <form method="post" action="{{ url_for('panel') }}">
@@ -32,6 +41,7 @@
     <script src="/assets/js/member-invites.js" defer></script>
     {% endif %}
   </section>
+  {% endif %}
 </main>
 {% endif %}
 {% endblock %}

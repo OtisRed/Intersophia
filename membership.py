@@ -18,6 +18,7 @@ INVITES_PER_DAY = 10
 INVITE_HOURS = 48
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 DISCOVERY = "https://accounts.google.com/.well-known/openid-configuration"
+ROLE_LABELS = {"member": "Członek SKN", "board": "Zarząd", "guardian": "Opiekun"}
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
@@ -25,6 +26,12 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS user_access (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    role TEXT NOT NULL CHECK (role IN ('member', 'board', 'guardian')),
+    revoked_at INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS one_guardian ON user_access(role) WHERE role='guardian';
 CREATE TABLE IF NOT EXISTS invitations (
     digest TEXT PRIMARY KEY,
     email TEXT NOT NULL,
@@ -117,9 +124,23 @@ def create_app(settings=None):
         if not session.get("csrf") or not secrets.compare_digest(supplied, session["csrf"].encode("ascii")):
             abort(400)
 
+    def account(connection, key, value):
+        match = {"id": "u.id", "google_sub": "u.google_sub", "email": "u.email"}[key]
+        return connection.execute(
+            "SELECT u.*, COALESCE(a.role, 'member') AS role, a.revoked_at "
+            f"FROM users u LEFT JOIN user_access a ON a.user_id=u.id WHERE {match}=?",
+            (value,),
+        ).fetchone()
+
     def logged_in():
         user_id = session.get("user_id")
-        return db().execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone() if user_id else None
+        if not user_id:
+            return None
+        user = account(db(), "id", user_id)
+        if user is None or user["revoked_at"] is not None:
+            session.clear()
+            return None
+        return user
 
     def invitation(connection, hashed):
         return connection.execute(
@@ -129,6 +150,10 @@ def create_app(settings=None):
 
     def login_page(error=None, status=200):
         return render_template("login.html", error=error, csrf=csrf_token()), status
+
+    def access_denied():
+        session.clear()
+        return login_page("Dostęp do panelu został odebrany.", 403)
 
     @app.get("/logowanie")
     def login():
@@ -179,7 +204,7 @@ def create_app(settings=None):
                 return login_page("Ten link jest już nieważny. Poproś o nowe zaproszenie.", 410)
             if invite and email != invite["email"]:
                 return login_page("To zaproszenie jest przypisane do innego konta Gmail. Wybierz właściwe konto.", 403)
-            user = connection.execute("SELECT id FROM users WHERE google_sub=?", (subject,)).fetchone()
+            user = account(connection, "google_sub", subject)
             if user is None:
                 if not invite:
                     return login_page("Aby dołączyć, otwórz otrzymany link z zaproszeniem.", 403)
@@ -190,6 +215,8 @@ def create_app(settings=None):
                     "INSERT INTO users(google_sub,email,name) VALUES (?,?,?)", (subject, email, name)
                 ).lastrowid
             else:
+                if user["revoked_at"] is not None:
+                    return access_denied()
                 user_id = user["id"]
             if invite:
                 connection.execute("UPDATE invitations SET used_by=? WHERE digest=?", (user_id, hashed))
@@ -205,27 +232,68 @@ def create_app(settings=None):
                            (hashed, email, int(time.time()) + hours * 3600))
         return hashed, app.config["PUBLIC_ORIGIN"].rstrip("/") + "/zaproszenie/" + token
 
+    def manage_access(connection, action):
+        target_id = request.form.get("user_id", type=int)
+        if not target_id or not 0 < target_id <= 2**63 - 1:
+            abort(400)
+        connection.execute("BEGIN IMMEDIATE")
+        with connection:
+            actor = logged_in()
+            if actor is None or actor["role"] != "guardian":
+                abort(403)
+            target = account(connection, "id", target_id)
+            if target is None:
+                abort(404)
+            if target["role"] == "guardian" or target["revoked_at"] is not None:
+                abort(403)
+            role = {"grant-board": "board", "remove-board": "member"}.get(action, target["role"])
+            revoked_at = int(time.time()) if action == "revoke-access" else None
+            connection.execute(
+                "INSERT INTO user_access (user_id, role, revoked_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(user_id) DO UPDATE SET role=excluded.role, revoked_at=excluded.revoked_at",
+                (target_id, role, revoked_at),
+            )
+        return redirect(url_for("panel", widok="dostep"), code=303)
+
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
         user = logged_in()
         if user is None:
             return redirect(url_for("login"), code=303)
         connection = db()
+        access_view = request.args.get("widok") == "dostep"
+        if access_view and user["role"] != "guardian":
+            abort(403)
         acknowledged = connection.execute(
             "SELECT 1 FROM welcome_acknowledgements WHERE user_id=?", (user["id"],)
         ).fetchone()
 
         def view(error=None, link=None, email="", status=200):
+            accounts = ()
+            if access_view and acknowledged:
+                accounts = connection.execute(
+                    "SELECT u.id, u.name, u.email, COALESCE(a.role, 'member') AS role, a.revoked_at "
+                    "FROM users u LEFT JOIN user_access a ON a.user_id=u.id ORDER BY u.email"
+                ).fetchall()
             return render_template("member.html", welcome=not acknowledged, csrf=csrf_token(),
-                                   error=error, invite_link=link, invite_email=email), status
+                                   error=error, invite_link=link, invite_email=email,
+                                   user=user, role_labels=ROLE_LABELS, access_view=access_view,
+                                   accounts=accounts), status
 
         if request.method == "GET":
             return view()
 
         require_csrf()
         action = request.form.get("action")
+        if action in {"grant-board", "remove-board", "revoke-access"}:
+            if not acknowledged:
+                abort(403)
+            return manage_access(connection, action)
         if action == "welcome":
+            connection.execute("BEGIN IMMEDIATE")
             with connection:
+                if logged_in() is None:
+                    return redirect(url_for("login"), code=303)
                 connection.execute("INSERT OR IGNORE INTO welcome_acknowledgements VALUES (?)", (user["id"],))
             return redirect(url_for("panel"), code=303)
         if action != "invite" or not acknowledged:
@@ -237,6 +305,8 @@ def create_app(settings=None):
         now = int(time.time())
         connection.execute("BEGIN IMMEDIATE")
         with connection:
+            if logged_in() is None:
+                return redirect(url_for("login"), code=303)
             issued = connection.execute(
                 "SELECT count(*) FROM invitation_issuers WHERE user_id=? AND created_at>?",
                 (user["id"], now - 86400),
@@ -263,6 +333,7 @@ def create_app(settings=None):
     @app.get("/auth/health")
     def health():
         db().execute("SELECT count(*) FROM welcome_acknowledgements").fetchone()
+        db().execute("SELECT role FROM user_access LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 
@@ -270,6 +341,28 @@ def create_app(settings=None):
     def init_db():
         Path(app.config["DATABASE"]).parent.mkdir(parents=True, exist_ok=True)
         db().executescript(SCHEMA)
+
+    @app.cli.command("bootstrap-guardian")
+    @click.argument("email")
+    def bootstrap_guardian(email):
+        email = gmail(email)
+        if email is None:
+            raise click.ClickException("Enter a Gmail address.")
+        connection = db()
+        connection.execute("BEGIN IMMEDIATE")
+        with connection:
+            target = account(connection, "email", email)
+            if target is None or target["revoked_at"] is not None:
+                raise click.ClickException("An active account for this Gmail is required.")
+            if target["role"] != "guardian":
+                if connection.execute("SELECT 1 FROM user_access WHERE role='guardian'").fetchone():
+                    raise click.ClickException("A guardian already exists.")
+                connection.execute(
+                    "INSERT INTO user_access (user_id, role) VALUES (?, 'guardian') "
+                    "ON CONFLICT(user_id) DO UPDATE SET role='guardian'",
+                    (target["id"],),
+                )
+        click.echo("Guardian account verified.")
 
     @app.cli.command("invite")
     @click.argument("email")

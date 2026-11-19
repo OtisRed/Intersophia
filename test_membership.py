@@ -158,6 +158,71 @@ class MembershipTests(unittest.TestCase):
         self.response(self.invite())
         self.assertEqual(self.callback(sub="different").status_code, 403)
 
+    def access_accounts(self):
+        self.member_ready()
+        guardian = self.client
+        user = self.claims
+        self.client = self.app.test_client()
+        self.claims = user | {"email": "second@gmail.com", "sub": "two"}
+        self.response(self.invite(self.claims["email"]))
+        self.assertEqual(self.callback().location, "/panel")
+        self.client.post("/panel", data={"csrf": self.csrf("/panel"), "action": "welcome"}, base_url=self.base)
+        return guardian, self.client
+
+    def bootstrap(self, email):
+        return self.app.test_cli_runner().invoke(args=["bootstrap-guardian", email])
+
+    def change_access(self, client, action, target=2, csrf=None):
+        previous, self.client = self.client, client
+        try:
+            csrf = csrf or self.csrf("/panel")
+        finally:
+            self.client = previous
+        return client.post("/panel?widok=dostep", data={
+            "action": action, "user_id": target, "csrf": csrf,
+        }, base_url=self.base)
+
+    def test_roles_on_existing_accounts_and_guardian_only_management(self):
+        guardian, member = self.access_accounts()
+        self.assertIn("Członek SKN", self.response("/panel").get_data(as_text=True))
+        self.assertNotEqual(self.bootstrap("missing@gmail.com").exit_code, 0)
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertNotEqual(self.bootstrap("second@gmail.com").exit_code, 0)
+        page = guardian.get("/panel?widok=dostep", base_url=self.base)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("second@gmail.com", page.get_data(as_text=True))
+        self.assertEqual(self.response("/panel?widok=dostep").status_code, 403)
+        self.assertEqual(self.change_access(member, "grant-board").status_code, 403)
+        self.assertEqual(self.change_access(guardian, "grant-board", csrf="wrong").status_code, 400)
+        self.assertEqual(self.change_access(guardian, "revoke-access", target=1).status_code, 403)
+        self.assertEqual(self.change_access(guardian, "grant-board").status_code, 303)
+        self.assertIn("Zarząd", self.response("/panel").get_data(as_text=True))
+        self.assertEqual(self.change_access(member, "revoke-access", target=1).status_code, 403)
+        self.assertEqual(self.issue_from_panel("new@gmail.com").status_code, 200)
+        self.assertEqual(self.change_access(guardian, "remove-board").status_code, 303)
+        self.assertIn("Członek SKN", self.response("/panel").get_data(as_text=True))
+        self.assertEqual(self.issue_from_panel("another@gmail.com").status_code, 200)
+
+    def test_revoke_denies_active_sessions_and_future_google_sign_in(self):
+        guardian, member = self.access_accounts()
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertEqual(self.response("/panel").status_code, 200)
+        csrf = self.csrf("/panel")
+        old_cookie = member.get_cookie("intersophia_accounts", domain="dev.intersophia.pl")
+        self.assertIsNotNone(old_cookie)
+        self.assertEqual(self.change_access(guardian, "revoke-access").status_code, 303)
+        self.assertEqual(self.issue_from_panel("new@gmail.com", csrf=csrf).location, "/logowanie")
+        self.assertIsNone(member.get_cookie("intersophia_accounts", domain="dev.intersophia.pl"))
+        member.set_cookie(old_cookie.key, old_cookie.value, domain="dev.intersophia.pl")
+        self.assertEqual(self.response("/panel").location, "/logowanie")
+        self.assertEqual(self.callback().status_code, 403)
+        page = guardian.get("/panel?widok=dostep", base_url=self.base)
+        self.assertIn("Dostęp odebrany", page.get_data(as_text=True))
+        self.assertEqual(self.change_access(guardian, "grant-board").status_code, 403)
+        with closing(sqlite3.connect(self.path)) as connection:
+            self.assertEqual(connection.execute("select count(*) from invitation_issuers").fetchone(), (0,))
+
 
 if __name__ == "__main__":
     unittest.main()
