@@ -21,6 +21,11 @@ to assign a second Opiekun. Use the Dostęp tab to assign or remove the Zarząd
 role or revoke panel access. Revocation applies on the next authenticated request
 and prevents future sign-ins by that account.
 
+Under Zaproś, members see and can revoke their own active invitations. Zarząd
+and Opiekun can see and revoke all active invitations, including CLI-issued links.
+Revocation also expires the link so a backend rollback cannot reactivate it.
+Links replaced before revocation tracking was introduced remain listed as expired.
+
 Issue a test invitation under the service account with the same private environment and working directory:
 
 ```sh
