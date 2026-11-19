@@ -1221,14 +1221,25 @@ body.keyboard-navigation::after {
   }
 }
 
-/* Membership entry stays in the header at all viewport sizes. */
-.bar .logo-banner { min-width: 0; }
-.join-link {
-  flex: 0 0 auto;
-  color: var(--text);
-  margin-inline-start: 12px;
-  padding: 10px 4px;
-  text-decoration: underline;
-  text-underline-offset: .2em;
+/* Login is the final resource shortcut. */
+.icon-btn.login-icon {
+  color: #ffab72;
 }
-.join-link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 3px; }
+
+.login-icon svg {
+  width: 60%;
+  height: 60%;
+}
+
+@media (max-width: 560px) {
+  .socials-mobile {
+    gap: 0;
+    padding-inline: 2px;
+  }
+
+  .socials-mobile .icon-btn {
+    width: clamp(44px, 13vw, 66px);
+    height: clamp(44px, 13vw, 66px);
+    flex-shrink: 0;
+  }
+}

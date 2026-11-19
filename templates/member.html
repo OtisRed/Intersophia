@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if welcome %}Witaj w Intersophii{% else %}Zaproś · Panel członka koła{% endif %}{% endblock %}
+{% block header_actions %}{% include "logout.html" %}{% endblock %}
 {% block main %}
 {% if welcome %}{{ super() }}{% else %}
 <main class="membership-main member-layout">
@@ -8,7 +9,6 @@
     <nav aria-label="Panel członka">
       <ul><li><a href="{{ url_for('panel') }}" aria-current="page">Zaproś</a></li></ul>
     </nav>
-    {% include "logout.html" %}
   </aside>
   <section class="membership-card member-content" aria-labelledby="invite-title">
     <h2 id="invite-title">Zaproś do Intersophii</h2>
@@ -43,5 +43,4 @@
   <input type="hidden" name="action" value="welcome">
   <button class="membership-action membership-send" type="submit">Rozumiem</button>
 </form>
-{% include "logout.html" %}
 {% endblock %}
