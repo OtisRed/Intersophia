@@ -103,6 +103,54 @@ class MembershipTests(unittest.TestCase):
             self.assertEqual(connection.execute("select name from declarations").fetchall(), [("Stare dane",)])
         self.assertEqual(self.app.test_client().get("/panel", base_url=self.base).location, "/logowanie")
 
+    def member_ready(self):
+        self.response(self.invite())
+        self.callback()
+        self.client.post("/panel", data={"csrf": self.csrf("/panel"), "action": "welcome"},
+                         base_url=self.base)
+
+    def issue_from_panel(self, email, csrf=None):
+        return self.client.post("/panel", data={"action": "invite", "email": email,
+                                                 "csrf": csrf or self.csrf("/panel")},
+                                base_url=self.base)
+
+    def test_member_can_issue_invite_matching_one_gmail(self):
+        self.member_ready()
+        page = self.response("/panel").get_data(as_text=True)
+        self.assertIn('aria-current="page">Zaproś', page)
+        issued = self.issue_from_panel("New.User@gmail.com")
+        self.assertEqual(issued.status_code, 200)
+        link = html.unescape(re.search(r'id="invite-link" value="([^"]+)"',
+                                       issued.get_data(as_text=True))[1])
+        token = link.rsplit("/", 1)[1]
+        self.assertNotIn(token, self.response("/panel").get_data(as_text=True))
+        with closing(sqlite3.connect(self.path)) as connection:
+            row = connection.execute("select email,user_id from invitations join invitation_issuers "
+                                     "using(digest) where digest=?", (digest(token),)).fetchone()
+            self.assertEqual(row, ("new.user@gmail.com", 1))
+        self.client = self.app.test_client()
+        self.assertEqual(self.response(link.removeprefix(self.base)).status_code, 303)
+        self.assertEqual(self.callback(email="other@gmail.com", sub="two").status_code, 403)
+        self.assertEqual(self.callback(email="new.user@gmail.com", sub="two").location, "/panel")
+        self.client = self.app.test_client()
+        self.assertEqual(self.response(link.removeprefix(self.base)).status_code, 410)
+
+    def test_panel_invites_require_member_csrf_and_gmail(self):
+        guest = self.client.post("/panel", data={"action": "invite", "email": "new@gmail.com"},
+                                 base_url=self.base)
+        self.assertEqual(guest.location, "/logowanie")
+        self.member_ready()
+        self.assertEqual(self.issue_from_panel("new@wp.pl").status_code, 400)
+        self.assertEqual(self.issue_from_panel("new@gmail.com", csrf="wrong").status_code, 400)
+        with closing(sqlite3.connect(self.path)) as connection:
+            self.assertEqual(connection.execute("select count(*) from invitation_issuers").fetchone(), (0,))
+
+    def test_member_invites_have_daily_limit(self):
+        self.member_ready()
+        for n in range(10):
+            self.assertEqual(self.issue_from_panel(f"tester{n}@gmail.com").status_code, 200)
+        self.assertEqual(self.issue_from_panel("one.more@gmail.com").status_code, 429)
+
     def test_other_google_subject_cannot_claim_existing_account(self):
         self.response(self.invite())
         self.callback()

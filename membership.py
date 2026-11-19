@@ -14,6 +14,8 @@ from flask import Flask, abort, g, redirect, render_template, request, session, 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 GMAIL = re.compile(r"[a-z0-9][a-z0-9.]{0,62}[a-z0-9]@gmail\.com|[a-z0-9]@gmail\.com")
+INVITES_PER_DAY = 10
+INVITE_HOURS = 48
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 DISCOVERY = "https://accounts.google.com/.well-known/openid-configuration"
 SCHEMA = """
@@ -29,6 +31,12 @@ CREATE TABLE IF NOT EXISTS invitations (
     expires_at INTEGER NOT NULL,
     used_by INTEGER REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS invitation_issuers (
+    digest TEXT PRIMARY KEY REFERENCES invitations(digest),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS invitation_issuer_time ON invitation_issuers(user_id, created_at);
 CREATE TABLE IF NOT EXISTS welcome_acknowledgements (
     user_id INTEGER PRIMARY KEY REFERENCES users(id)
 );
@@ -190,22 +198,61 @@ def create_app(settings=None):
         session.permanent = True
         return redirect(url_for("panel"), code=303)
 
+    def new_invitation(connection, email, hours):
+        token = secrets.token_urlsafe(32)
+        hashed = digest(token)
+        connection.execute("INSERT INTO invitations VALUES (?, ?, ?, NULL)",
+                           (hashed, email, int(time.time()) + hours * 3600))
+        return hashed, app.config["PUBLIC_ORIGIN"].rstrip("/") + "/zaproszenie/" + token
+
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
         user = logged_in()
         if user is None:
             return redirect(url_for("login"), code=303)
-        if request.method == "POST":
-            require_csrf()
-            if request.form.get("action") != "welcome":
-                abort(400)
-            with db():
-                db().execute("INSERT OR IGNORE INTO welcome_acknowledgements VALUES (?)", (user["id"],))
-            return redirect(url_for("panel"), code=303)
-        acknowledged = db().execute(
+        connection = db()
+        acknowledged = connection.execute(
             "SELECT 1 FROM welcome_acknowledgements WHERE user_id=?", (user["id"],)
         ).fetchone()
-        return render_template("member.html", welcome=not acknowledged, csrf=csrf_token())
+
+        def view(error=None, link=None, email="", status=200):
+            return render_template("member.html", welcome=not acknowledged, csrf=csrf_token(),
+                                   error=error, invite_link=link, invite_email=email), status
+
+        if request.method == "GET":
+            return view()
+
+        require_csrf()
+        action = request.form.get("action")
+        if action == "welcome":
+            with connection:
+                connection.execute("INSERT OR IGNORE INTO welcome_acknowledgements VALUES (?)", (user["id"],))
+            return redirect(url_for("panel"), code=303)
+        if action != "invite" or not acknowledged:
+            abort(400)
+        email = gmail(request.form.get("email"))
+        if not email:
+            return view("Podaj poprawny adres Gmail.", status=400)
+
+        now = int(time.time())
+        connection.execute("BEGIN IMMEDIATE")
+        with connection:
+            issued = connection.execute(
+                "SELECT count(*) FROM invitation_issuers WHERE user_id=? AND created_at>?",
+                (user["id"], now - 86400),
+            ).fetchone()[0]
+            if issued >= INVITES_PER_DAY:
+                return view("Limit 10 zaproszeń w ciągu 24 godzin został wykorzystany. Spróbuj później.",
+                            email=email, status=429)
+            # A regenerated link replaces only this member's pending link for the same Gmail.
+            connection.execute(
+                "UPDATE invitations SET expires_at=? WHERE email=? AND used_by IS NULL AND expires_at>? "
+                "AND digest IN (SELECT digest FROM invitation_issuers WHERE user_id=?)",
+                (now, email, now, user["id"]),
+            )
+            hashed, link = new_invitation(connection, email, INVITE_HOURS)
+            connection.execute("INSERT INTO invitation_issuers VALUES (?, ?, ?)", (hashed, user["id"], now))
+        return view(link=link, email=email)
 
     @app.post("/wyloguj")
     def logout():
@@ -231,11 +278,8 @@ def create_app(settings=None):
         email = gmail(email)
         if not email:
             raise click.ClickException("Enter a Gmail address.")
-        token = secrets.token_urlsafe(32)
         with db():
-            db().execute("DELETE FROM invitations WHERE email=? AND used_by IS NULL", (email,))
-            db().execute("INSERT INTO invitations VALUES (?, ?, ?, NULL)",
-                         (digest(token), email, int(time.time()) + hours * 3600))
-        click.echo(app.config["PUBLIC_ORIGIN"].rstrip("/") + "/zaproszenie/" + token)
+            _, link = new_invitation(db(), email, hours)
+        click.echo(link)
 
     return app
