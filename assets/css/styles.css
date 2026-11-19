@@ -1220,3 +1220,15 @@ body.keyboard-navigation::after {
     animation: none !important;
   }
 }
+
+/* Membership entry stays in the header at all viewport sizes. */
+.bar .logo-banner { min-width: 0; }
+.join-link {
+  flex: 0 0 auto;
+  color: var(--text);
+  margin-inline-start: 12px;
+  padding: 10px 4px;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+.join-link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 3px; }

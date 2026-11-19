@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Dołącz do Intersophii{% endblock %}
+{% block content %}
+<h1 id="title">Dołącz do Intersophii</h1>
+{% if error %}<p class="membership-error" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="{{ url_for('google_start') }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button class="membership-action membership-google" type="submit"><img src="/assets/google-sign-in.png" width="18" height="18" alt="">Zaloguj się przez Google</button>
+</form>
+{% endblock %}

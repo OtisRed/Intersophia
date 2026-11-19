@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{% if declaration %}Deklaracja wysłana{% else %}Chcę dołączyć do Intersophii{% endif %}{% endblock %}
+{% block content %}
+{% if declaration %}
+  <h1 id="title">Deklaracja wysłana</h1>
+  <p class="membership-status">Oczekuje na decyzję</p>
+{% else %}
+  <h1 id="title">Chcę dołączyć do Intersophii</h1>
+  <p class="membership-copy">O przyjęciu zdecyduje Zarząd lub Opiekun.</p>
+  {% if error %}<p class="membership-error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="{{ url_for('panel') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Imię i nazwisko<input name="name" autocomplete="name" value="{{ user.name }}" maxlength="120" required></label>
+    <label>Adres kontaktowy<input type="email" value="{{ user.email }}" readonly></label>
+    <button class="membership-action membership-send" type="submit">Złóż deklarację</button>
+  </form>
+{% endif %}
+<form method="post" action="{{ url_for('logout') }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button class="membership-later" type="submit">{% if declaration %}Wyloguj się{% else %}Złożę później{% endif %}</button>
+</form>
+{% endblock %}

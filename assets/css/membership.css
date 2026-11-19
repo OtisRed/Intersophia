@@ -1,0 +1,22 @@
+:root{color-scheme:dark;--bg:#080e15;--card:#0b1926;--border:#2c4052;--text:#e6eef8;--muted:#aebdca;--accent:#ffab72;--blue:#a8d8ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sans-serif}
+.membership-header,.membership-main{max-width:1100px;margin:auto;padding-inline:clamp(20px,5vw,55px)}
+.membership-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:30px 24px;border-bottom:1px solid var(--border)}
+.membership-header img{width:clamp(126px,24vw,172px);height:auto}
+.membership-header a,.membership-later{color:var(--blue);text-underline-offset:.2em}
+.membership-header a{font-size:.93rem;text-align:right}
+.membership-main{padding-block:clamp(34px,8vw,82px) 48px}
+.membership-card{max-width:450px;margin:auto;background:var(--card);border-radius:14px;border:1px solid var(--border);padding:clamp(20px,5vw,32px)}
+.membership-card h1,.membership-card p{margin:0}
+.membership-card h1{font-size:clamp(1.55rem,4vw,1.85rem);line-height:1.2}
+.membership-card .membership-copy{margin:12px 0 20px;color:var(--muted)}
+.membership-action{display:block;width:100%;border-radius:8px;border:0;padding:12px 18px;font:inherit;font-weight:720;text-align:center;cursor:pointer}
+.membership-google{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:22px;padding:10px 12px;background:#fff;border:1px solid #747775;color:#1f1f1f;font:500 14px/20px "Google Sans",Arial,sans-serif}.membership-google img{flex:none;object-fit:contain}
+.membership-send{background:var(--accent);color:#14110d}
+.membership-card label{display:block;margin-bottom:15px;font-weight:650}
+.membership-card input:not([type=hidden]){display:block;width:100%;margin-top:5px;padding:10px 12px;border-radius:8px;background:#08131e;border:1px solid var(--border);color:var(--text);font:inherit;font-weight:450}
+.membership-later{margin-top:15px;padding:4px 0;background:none;border:0;font:inherit;cursor:pointer;text-decoration:underline}
+.membership-card .membership-status{display:inline-block;background:#3a291e;color:#ffbe91;padding:3px 9px;border-radius:6px;font-size:.85rem;font-weight:700;margin-top:14px}
+.membership-card .membership-error{margin:14px 0;padding:10px 12px;border-left:3px solid var(--accent);color:#ffd1b4}
+:focus-visible{outline:2px solid var(--blue);outline-offset:4px}
