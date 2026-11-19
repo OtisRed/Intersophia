@@ -25,15 +25,19 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .membership-home img { display:block;width:100%;height:auto; }
 
 .membership-home-caption {
-  display:flex;
-  justify-content:flex-end;
-  align-items:center;
-  gap:4px;
-  margin-top:1px;
+  display:table;
+  position:relative;
+  margin-block-start:1px;
+  margin-inline: auto 3%;
   font-size:.75rem;
+  line-height:24px;
 }
 
-.membership-home-caption svg { flex:none; }
+.membership-home-caption svg {
+  position:absolute;
+  inset-inline-start:calc(100% + 4px);
+  inset-block-start:-4px;
+}
 .membership-home:hover .membership-home-caption { text-decoration:underline; }
 
 .membership-logout { position:relative;margin:0; }
