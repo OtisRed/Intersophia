@@ -82,7 +82,7 @@
 @media (max-width: 600px) { :root { --header-height: 110px; } }
 
 /* ===== BASE / LAYOUT ===== */
-h﻿tml, body {
+html, body {
   height: 100%;
   min-height: 100vh;
   margin: 0;
@@ -141,10 +141,17 @@ p {
   max-width: 1200px;
   height: calc(100vh - var(--header-height));
   margin: 0 auto;
-  padding: 0 24px 32px;
+  padding: 24px 24px 32px;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+}
+
+.layout-main {
+  display: grid;
+  grid-template:
+    "sidebar socials" auto
+    "sidebar content" minmax(0, 1fr) /
+    minmax(320px, 40%) minmax(0, 60%);
+  gap: 24px;
 }
 
 .card-surface {
@@ -179,17 +186,8 @@ p {
               0 12px 28px var(--shadow-dark);
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 40%) minmax(0, 60%);
-  gap: 24px;
-  align-items: stretch;
-  margin-top: 24px;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
 .main {
+  grid-area: main;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -225,10 +223,16 @@ p {
   }
 }
 .socials-desktop {
+  grid-area: socials;
   position: static;
   top: auto;
   z-index: initial;
   align-self: stretch;
+}
+
+.main-content {
+  grid-area: content;
+  align-self: start;
 }
 
 .mobile-footer {
@@ -370,8 +374,7 @@ header { position: static; width: 100%; background: var(--bg); }
 
 /* ===== SIDEBAR ===== */
 .sidebar {
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: sidebar;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1083,9 +1086,6 @@ body.keyboard-navigation::after {
   }
 }
 
-/* Optional: ensure focus-visible still usable for keyboard users later:
-   you can replace the above with a subtler rule instead of removing outlines entirely. */
-
 /* ===== RESPONSIVE (mobile) ===== */
 @media (max-width: 960px) {
   html, body {
@@ -1107,7 +1107,7 @@ body.keyboard-navigation::after {
     --social-size: 82px;
   }
 
-  .layout { display: none; }
+  .layout-main { display: none; }
 
   .mobile {
     display: block;
