@@ -19,6 +19,9 @@ INVITE_HOURS = 48
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 DISCOVERY = "https://accounts.google.com/.well-known/openid-configuration"
 ROLE_LABELS = {"member": "Członek SKN", "board": "Zarząd", "guardian": "Opiekun"}
+INVITATION_LABELS = {"active": "Aktywne", "used": "Wykorzystane", "expired": "Wygasłe", "revoked": "Cofnięte"}
+INVITATION_MANAGERS = {"board", "guardian"}
+INVITATION_SCOPE = "(? OR issuer.user_id=?)"
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
@@ -44,6 +47,16 @@ CREATE TABLE IF NOT EXISTS invitation_issuers (
     created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS invitation_issuer_time ON invitation_issuers(user_id, created_at);
+CREATE TABLE IF NOT EXISTS invitation_revocations (
+    digest TEXT PRIMARY KEY REFERENCES invitations(digest),
+    revoked_by INTEGER NOT NULL REFERENCES users(id),
+    revoked_at INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS expire_revoked_invitation
+AFTER INSERT ON invitation_revocations
+BEGIN
+    UPDATE invitations SET expires_at=MIN(expires_at, NEW.revoked_at) WHERE digest=NEW.digest;
+END;
 CREATE TABLE IF NOT EXISTS welcome_acknowledgements (
     user_id INTEGER PRIMARY KEY REFERENCES users(id)
 );
@@ -232,6 +245,40 @@ def create_app(settings=None):
                            (hashed, email, int(time.time()) + hours * 3600))
         return hashed, app.config["PUBLIC_ORIGIN"].rstrip("/") + "/zaproszenie/" + token
 
+    def list_invitations(connection, user):
+        return connection.execute(
+            "SELECT i.digest, i.email, u.email AS issuer_email, "
+            "CASE WHEN i.used_by IS NOT NULL THEN 'used' "
+            "WHEN r.digest IS NOT NULL THEN 'revoked' "
+            "WHEN i.expires_at<=? THEN 'expired' ELSE 'active' END AS status "
+            "FROM invitations i LEFT JOIN invitation_issuers issuer ON issuer.digest=i.digest "
+            "LEFT JOIN users u ON u.id=issuer.user_id "
+            "LEFT JOIN invitation_revocations r ON r.digest=i.digest "
+            f"WHERE {INVITATION_SCOPE} ORDER BY COALESCE(issuer.created_at, i.expires_at) DESC, i.digest",
+            (int(time.time()), user["role"] in INVITATION_MANAGERS, user["id"]),
+        ).fetchall()
+
+    def revoke_invitation(connection):
+        invitation_id = request.form.get("invitation_id", "")
+        if not re.fullmatch(r"[0-9a-f]{64}", invitation_id):
+            abort(400)
+        connection.execute("BEGIN IMMEDIATE")
+        with connection:
+            actor = logged_in()
+            if actor is None:
+                return redirect(url_for("login"), code=303)
+            now = int(time.time())
+            changed = connection.execute(
+                "INSERT INTO invitation_revocations (digest, revoked_by, revoked_at) "
+                "SELECT i.digest, ?, ? FROM invitations i "
+                "LEFT JOIN invitation_issuers issuer ON issuer.digest=i.digest "
+                f"WHERE {INVITATION_SCOPE} AND i.digest=? AND i.used_by IS NULL AND i.expires_at>?",
+                (actor["id"], now, actor["role"] in INVITATION_MANAGERS, actor["id"], invitation_id, now),
+            ).rowcount
+            if not changed:
+                abort(404, "Nie ma aktywnego zaproszenia, które możesz cofnąć.")
+        return redirect(url_for("panel"), code=303)
+
     def manage_access(connection, action):
         target_id = request.form.get("user_id", type=int)
         if not target_id or not 0 < target_id <= 2**63 - 1:
@@ -270,21 +317,29 @@ def create_app(settings=None):
 
         def view(error=None, link=None, email="", status=200):
             accounts = ()
+            invites = ()
             if access_view and acknowledged:
                 accounts = connection.execute(
                     "SELECT u.id, u.name, u.email, COALESCE(a.role, 'member') AS role, a.revoked_at "
                     "FROM users u LEFT JOIN user_access a ON a.user_id=u.id ORDER BY u.email"
                 ).fetchall()
+            elif acknowledged:
+                invites = list_invitations(connection, user)
             return render_template("member.html", welcome=not acknowledged, csrf=csrf_token(),
                                    error=error, invite_link=link, invite_email=email,
                                    user=user, role_labels=ROLE_LABELS, access_view=access_view,
-                                   accounts=accounts), status
+                                   accounts=accounts, invitations=invites, invitation_labels=INVITATION_LABELS,
+                                   show_invitation_issuers=user["role"] in INVITATION_MANAGERS), status
 
         if request.method == "GET":
             return view()
 
         require_csrf()
         action = request.form.get("action")
+        if action == "revoke-invitation":
+            if not acknowledged:
+                abort(403)
+            return revoke_invitation(connection)
         if action in {"grant-board", "remove-board", "revoke-access"}:
             if not acknowledged:
                 abort(403)
@@ -302,11 +357,11 @@ def create_app(settings=None):
         if not email:
             return view("Podaj poprawny adres Gmail.", status=400)
 
-        now = int(time.time())
         connection.execute("BEGIN IMMEDIATE")
         with connection:
             if logged_in() is None:
                 return redirect(url_for("login"), code=303)
+            now = int(time.time())
             issued = connection.execute(
                 "SELECT count(*) FROM invitation_issuers WHERE user_id=? AND created_at>?",
                 (user["id"], now - 86400),
@@ -316,9 +371,11 @@ def create_app(settings=None):
                             email=email, status=429)
             # A regenerated link replaces only this member's pending link for the same Gmail.
             connection.execute(
-                "UPDATE invitations SET expires_at=? WHERE email=? AND used_by IS NULL AND expires_at>? "
-                "AND digest IN (SELECT digest FROM invitation_issuers WHERE user_id=?)",
-                (now, email, now, user["id"]),
+                "INSERT INTO invitation_revocations (digest, revoked_by, revoked_at) "
+                "SELECT i.digest, issuer.user_id, ? FROM invitations i "
+                "JOIN invitation_issuers issuer ON issuer.digest=i.digest "
+                "WHERE issuer.user_id=? AND i.email=? AND i.used_by IS NULL AND i.expires_at>?",
+                (now, user["id"], email, now),
             )
             hashed, link = new_invitation(connection, email, INVITE_HOURS)
             connection.execute("INSERT INTO invitation_issuers VALUES (?, ?, ?)", (hashed, user["id"], now))
@@ -334,6 +391,7 @@ def create_app(settings=None):
     def health():
         db().execute("SELECT count(*) FROM welcome_acknowledgements").fetchone()
         db().execute("SELECT role FROM user_access LIMIT 1").fetchone()
+        db().execute("SELECT digest FROM invitation_revocations LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 

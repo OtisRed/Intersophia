@@ -223,6 +223,79 @@ class MembershipTests(unittest.TestCase):
         with closing(sqlite3.connect(self.path)) as connection:
             self.assertEqual(connection.execute("select count(*) from invitation_issuers").fetchone(), (0,))
 
+    def revoke_invite(self, link, csrf=None):
+        return self.client.post("/panel", data={
+            "action": "revoke-invitation",
+            "invitation_id": digest(link.rsplit("/", 1)[1]),
+            "csrf": csrf or self.csrf("/panel"),
+        }, base_url=self.base)
+
+    def issue_link(self, email):
+        response = self.issue_from_panel(email)
+        self.assertEqual(response.status_code, 200)
+        return html.unescape(re.search(r'id="invite-link" value="([^"]+)"',
+                                       response.get_data(as_text=True))[1]).removeprefix(self.base)
+
+    def test_invite_management_uses_current_role_and_issuer(self):
+        guardian, member = self.access_accounts()
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        owned = self.issue_link("owned@gmail.com")
+        technical = self.invite("technical@gmail.com")
+        self.client = guardian
+        other = self.issue_link("other@gmail.com")
+        self.assertIn("owned@gmail.com", self.response("/panel").get_data(as_text=True))
+        self.client = member
+        page = self.response("/panel").get_data(as_text=True)
+        self.assertIn("owned@gmail.com", page)
+        self.assertNotIn("other@gmail.com", page)
+        self.assertNotIn("technical@gmail.com", page)
+        self.assertEqual(self.revoke_invite(other).status_code, 404)
+        self.assertEqual(self.revoke_invite(technical).status_code, 404)
+        self.assertEqual(self.revoke_invite(owned, csrf="wrong").status_code, 400)
+        self.assertEqual(self.revoke_invite(owned).status_code, 303)
+        self.assertEqual(self.revoke_invite(owned).status_code, 404)
+        self.assertEqual(self.change_access(guardian, "grant-board").status_code, 303)
+        self.assertIn("Wszystkie zaproszenia", self.response("/panel").get_data(as_text=True))
+        self.assertEqual(self.revoke_invite(other).status_code, 303)
+        self.assertEqual(self.change_access(guardian, "remove-board").status_code, 303)
+        self.assertEqual(self.revoke_invite(technical).status_code, 404)
+        self.client = guardian
+        self.assertEqual(self.revoke_invite(technical).status_code, 303)
+
+    def test_invite_statuses_and_pending_google_callback(self):
+        self.member_ready()
+        issuer = self.client
+        previous = self.issue_link("replaced@gmail.com")
+        current = self.issue_link("replaced@gmail.com")
+        used = self.issue_link("used@gmail.com")
+        expired = self.issue_link("expired@gmail.com")
+        self.client = self.app.test_client()
+        self.assertEqual(self.response(used).status_code, 303)
+        self.assertEqual(self.callback(email="used@gmail.com", sub="used").status_code, 303)
+        self.client = pending = self.app.test_client()
+        self.assertEqual(self.response(current).status_code, 303)
+        self.client = issuer
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute("update invitations set expires_at=? where digest=?",
+                               (int(time.time()) - 1, digest(expired.rsplit("/", 1)[1])))
+        page = self.response("/panel").get_data(as_text=True)
+        for label in ("Aktywne", "Wykorzystane", "Wygasłe", "Cofnięte"):
+            self.assertIn(label, page)
+        self.assertEqual(page.count('value="revoke-invitation"'), 1)
+        self.assertNotIn(current.rsplit("/", 1)[1], page)
+        self.assertEqual(self.revoke_invite(used).status_code, 404)
+        self.assertEqual(self.revoke_invite(expired).status_code, 404)
+        self.assertEqual(self.revoke_invite(current).status_code, 303)
+        self.client = pending
+        self.assertEqual(self.callback(email="replaced@gmail.com", sub="pending").status_code, 410)
+        self.assertEqual(self.response(previous).status_code, 410)
+        self.assertEqual(self.response(current).status_code, 410)
+        with closing(sqlite3.connect(self.path)) as connection:
+            # The old deployment ignores the new revocation table during rollback.
+            self.assertLessEqual(connection.execute("select expires_at from invitations where digest=?",
+                                                   (digest(current.rsplit("/", 1)[1]),)).fetchone()[0],
+                                 int(time.time()))
+
 
 if __name__ == "__main__":
     unittest.main()
