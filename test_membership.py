@@ -45,27 +45,27 @@ class MembershipTests(unittest.TestCase):
                           return_value={"userinfo": self.claims | changes}):
             return self.response("/auth/google/callback")
 
-    def test_invite_and_declare_then_existing_user_can_return(self):
+    def test_invite_welcome_and_member_panel_persist_on_return(self):
         link = self.invite()
         self.assertEqual(self.response(link).location, "/logowanie")
-        self.assertEqual(self.response(link).status_code, 303)
         csrf = self.csrf("/logowanie")
         with patch.object(self.google, "authorize_redirect", return_value=("OAuth", 200)) as auth:
             self.client.post("/auth/google", data={"csrf": csrf}, base_url=self.base)
         auth.assert_called_once_with(self.base + "/auth/google/callback",
                                      prompt="select_account", login_hint="tester@gmail.com")
         self.assertEqual(self.callback().location, "/panel")
+        self.assertIn("Witaj w Intersophii", self.response("/panel").get_data(as_text=True))
         form_csrf = self.csrf("/panel")
-        for name in ("Ania Nowak", "Druga próba"):
-            self.assertEqual(self.client.post("/panel", data={"csrf": form_csrf, "name": name},
+        for _ in range(2):
+            self.assertEqual(self.client.post("/panel", data={"csrf": form_csrf, "action": "welcome"},
                                               base_url=self.base).status_code, 303)
-        self.assertIn("Oczekuje na decyzję", self.response("/panel").get_data(as_text=True))
-        with closing(sqlite3.connect(self.path)) as connection, connection:
-            self.assertEqual(connection.execute("select name from declarations").fetchall(), [("Ania Nowak",)])
+        self.assertIn("Panel członka koła", self.response("/panel").get_data(as_text=True))
         self.client.post("/wyloguj", data={"csrf": form_csrf}, base_url=self.base)
         self.assertEqual(self.response(link).status_code, 410)
         self.assertEqual(self.callback().location, "/panel")
-        self.assertEqual(self.response("/panel").headers["Cache-Control"], "no-store")
+        panel = self.response("/panel")
+        self.assertIn("Panel członka koła", panel.get_data(as_text=True))
+        self.assertEqual(panel.headers["Cache-Control"], "no-store")
 
     def test_wrong_or_unverified_account_does_not_spend_invite(self):
         self.response(self.invite())
@@ -86,11 +86,21 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(self.callback().status_code, 410)
         self.assertEqual(self.response("/panel").location, "/logowanie")
 
-    def test_declaring_needs_csrf_and_candidate_identity(self):
+    def test_old_declaration_is_preserved_but_does_not_block_access(self):
         self.response(self.invite())
         self.callback()
-        self.assertEqual(self.client.post("/panel", data={"name": "Test"}, base_url=self.base).status_code, 400)
-        self.assertNotIn("Oczekuje na decyzję", self.response("/panel").get_data(as_text=True))
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute("insert into declarations values (1, 'Stare dane', 1)")
+        self.assertIn("Rozumiem", self.response("/panel").get_data(as_text=True))
+        form_csrf = self.csrf("/panel")
+        old_form = self.client.post("/panel", data={"csrf": form_csrf, "name": "Test"}, base_url=self.base)
+        self.assertEqual(old_form.status_code, 400)
+        no_csrf = self.client.post("/panel", data={"action": "welcome"}, base_url=self.base)
+        self.assertEqual(no_csrf.status_code, 400)
+        self.client.post("/panel", data={"csrf": form_csrf, "action": "welcome"}, base_url=self.base)
+        self.assertIn("Panel członka koła", self.response("/panel").get_data(as_text=True))
+        with closing(sqlite3.connect(self.path)) as connection:
+            self.assertEqual(connection.execute("select name from declarations").fetchall(), [("Stare dane",)])
         self.assertEqual(self.app.test_client().get("/panel", base_url=self.base).location, "/logowanie")
 
     def test_other_google_subject_cannot_claim_existing_account(self):
