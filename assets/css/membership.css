@@ -20,3 +20,17 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .membership-card .membership-status{display:inline-block;background:#3a291e;color:#ffbe91;padding:3px 9px;border-radius:6px;font-size:.85rem;font-weight:700;margin-top:14px}
 .membership-card .membership-error{margin:14px 0;padding:10px 12px;border-left:3px solid var(--accent);color:#ffd1b4}
 :focus-visible{outline:2px solid var(--blue);outline-offset:4px}
+
+.member-layout{display:grid;grid-template-columns:minmax(190px,240px) minmax(0,1fr);gap:20px;align-items:start}
+.member-sidebar{background:#0b1724;border:1px solid var(--border);border-radius:14px;padding:20px}
+.member-sidebar h1{font-size:1.1rem;line-height:1.3;margin-bottom:14px}
+.member-sidebar ul{list-style:none;margin:0;padding:0}
+.member-sidebar a{display:block;background:#0b2130;border-left:3px solid var(--accent);border-radius:6px;padding:10px 12px;color:var(--text);font-weight:700}
+.member-content.membership-card{width:100%;max-width:none;margin:0}
+.member-content h2{margin:0 0 20px;font-size:clamp(1.45rem,4vw,1.8rem);line-height:1.2}
+.member-content label{margin-bottom:0}
+.member-generate{margin-top:16px;max-width:230px}
+.member-invite-result{margin-top:24px;border-top:1px solid var(--border);padding-top:20px}
+.member-invite-result .membership-google{margin-top:0;max-width:230px}
+.member-invite-result #copy-result{margin-top:8px}
+@media(max-width:650px){.member-layout{grid-template-columns:minmax(0,1fr)}}

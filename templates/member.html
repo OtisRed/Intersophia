@@ -1,19 +1,47 @@
 {% extends "base.html" %}
-{% block title %}{% if welcome %}Witaj w Intersophii{% else %}Panel członka koła{% endif %}{% endblock %}
-{% block content %}
-{% if welcome %}
-  <h1 id="title">Witaj w Intersophii</h1>
-  <p class="membership-copy">Tu pojawią się zasady naszej społeczności.</p>
-  <form method="post" action="{{ url_for('panel') }}">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <input type="hidden" name="action" value="welcome">
-    <button class="membership-action membership-send" type="submit">Rozumiem</button>
-  </form>
-{% else %}
-  <h1 id="title">Panel członka koła</h1>
+{% block title %}{% if welcome %}Witaj w Intersophii{% else %}Zaproś · Panel członka koła{% endif %}{% endblock %}
+{% block main %}
+{% if welcome %}{{ super() }}{% else %}
+<main class="membership-main member-layout">
+  <aside class="member-sidebar">
+    <h1>Panel członka koła</h1>
+    <nav aria-label="Panel członka">
+      <ul><li><a href="{{ url_for('panel') }}" aria-current="page">Zaproś</a></li></ul>
+    </nav>
+    {% include "logout.html" %}
+  </aside>
+  <section class="membership-card member-content" aria-labelledby="invite-title">
+    <h2 id="invite-title">Zaproś do Intersophii</h2>
+    <form method="post" action="{{ url_for('panel') }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="action" value="invite">
+      <label for="invite-email">Adres Gmail</label>
+      <input id="invite-email" name="email" type="email" autocomplete="off" value="{{ invite_email }}"
+             placeholder="nazwa@gmail.com" maxlength="78" required{% if error %} aria-describedby="invite-error"{% endif %}>
+      {% if error %}<p class="membership-error" id="invite-error" role="alert">{{ error }}</p>{% endif %}
+      <button class="membership-action membership-send member-generate" type="submit">Utwórz link</button>
+    </form>
+    {% if invite_link %}
+    <div class="member-invite-result">
+      <label for="invite-link">Jednorazowy link</label>
+      <input type="url" id="invite-link" value="{{ invite_link }}" readonly>
+      <p class="membership-copy">Wyślij go ręcznie na podany adres. Link jest ważny przez 48 godzin.</p>
+      <button class="membership-action membership-google" id="copy-invite" type="button">Skopiuj link</button>
+      <p id="copy-result" role="status"></p>
+    </div>
+    <script src="/assets/js/member-invites.js" defer></script>
+    {% endif %}
+  </section>
+</main>
 {% endif %}
-<form method="post" action="{{ url_for('logout') }}">
+{% endblock %}
+{% block content %}
+<h1 id="title">Witaj w Intersophii</h1>
+<p class="membership-copy">Tu pojawią się zasady naszej społeczności.</p>
+<form method="post" action="{{ url_for('panel') }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <button class="membership-later" type="submit">Wyloguj się</button>
+  <input type="hidden" name="action" value="welcome">
+  <button class="membership-action membership-send" type="submit">Rozumiem</button>
 </form>
+{% include "logout.html" %}
 {% endblock %}

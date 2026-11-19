@@ -1,6 +1,6 @@
 # Staging member flow
 
-The application gives invited users basic member access when they log in. The first visit shows a placeholder for community rules and a “Rozumiem” button. This only dismisses the welcome screen. There is no declaration submission or approval. The old declaration table and template are kept temporarily but are no longer used by the panel.
+The application gives invited users basic member access when they log in. The first visit shows a placeholder for community rules and a “Rozumiem” button. This only dismisses the welcome screen. There is no declaration submission or approval. After the welcome step a member can generate a 48-hour one-time link for a Gmail address and copy it for manual delivery. The service records the issuing member and allows up to ten links per member per 24 hours. The old declaration table and template are kept temporarily but are no longer used by the panel.
 
 ## Local verification
 
