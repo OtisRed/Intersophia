@@ -1,0 +1,24 @@
+<section class="membership-card member-content" aria-labelledby="access-title">
+  <h2 id="access-title">Dostęp do panelu</h2>
+  <ul class="member-accounts">
+    {% for account in accounts %}
+    <li>
+      <strong>{{ account.name or account.email }}</strong>
+      {% if account.name %}<span>{{ account.email }}</span>{% endif %}
+      <p>{{ role_labels[account.role] }}{% if account.revoked_at is not none %} · Dostęp odebrany{% endif %}</p>
+      {% if account.role != "guardian" and account.revoked_at is none %}
+      <form method="post" action="{{ url_for('panel', widok='dostep') }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="user_id" value="{{ account.id }}">
+        {% if account.role == "board" %}
+        <button type="submit" name="action" value="remove-board">Odbierz rolę Zarządu</button>
+        {% else %}
+        <button type="submit" name="action" value="grant-board">Nadaj rolę Zarządu</button>
+        {% endif %}
+        <button type="submit" name="action" value="revoke-access">Odbierz dostęp</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
