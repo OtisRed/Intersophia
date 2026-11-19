@@ -5,8 +5,17 @@
 <link rel="stylesheet" href="/assets/css/membership.css">
 </head><body>
 <header class="membership-header">
-  <img src="/assets/logo.svg" alt="Intersophia" width="172">
-  <a href="/">Powrót na stronę główną</a>
+  <a class="membership-home" href="/" aria-label="Intersophia — wróć do strony głównej">
+    <img src="/assets/logo.svg" alt="" width="280">
+    <span class="membership-home-caption" aria-hidden="true">
+      Wróć do strony głównej
+      <svg viewBox="0 0 32 24" width="32" height="24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 20C14 23 30 20 26 4M21 8l5-5 4 6"/>
+      </svg>
+    </span>
+  </a>
+  {% block header_actions %}{% endblock %}
 </header>
 {% block main %}<main class="membership-main"><section class="membership-card" aria-labelledby="title">
 {% block content %}{% endblock %}
