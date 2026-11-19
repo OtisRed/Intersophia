@@ -1240,6 +1240,6 @@ body.keyboard-navigation::after {
   .socials-mobile .icon-btn {
     width: clamp(44px, 13vw, 66px);
     height: clamp(44px, 13vw, 66px);
-    flex-shrink: 0;
+    min-width: 0;
   }
 }
