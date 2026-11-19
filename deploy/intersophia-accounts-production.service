@@ -1,0 +1,29 @@
+[Unit]
+Description=Intersophia member accounts on production
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=intersophia-accounts
+Group=intersophia-accounts
+WorkingDirectory=/opt/intersophia-accounts/production-current
+StateDirectory=intersophia-accounts
+StateDirectoryMode=0700
+Environment=INTERSOPHIA_DB=/var/lib/intersophia-accounts/staging.sqlite
+Environment=INTERSOPHIA_ORIGIN=https://intersophia.pl
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/intersophia-accounts/production.env
+ExecStartPre=/usr/bin/test "${INTERSOPHIA_DB}" = /var/lib/intersophia-accounts/staging.sqlite
+ExecStartPre=/usr/bin/test -s /var/lib/intersophia-accounts/staging.sqlite
+ExecStartPre=/opt/intersophia-accounts/venv/bin/flask --app membership:create_app init-db
+ExecStart=/opt/intersophia-accounts/venv/bin/gunicorn --bind 127.0.0.1:8092 --workers 2 --worker-tmp-dir /tmp membership:create_app()
+Restart=on-failure
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
