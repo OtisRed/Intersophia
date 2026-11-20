@@ -245,20 +245,23 @@ def create_app(settings=None):
                            (hashed, email, int(time.time()) + hours * 3600))
         return hashed, app.config["PUBLIC_ORIGIN"].rstrip("/") + "/zaproszenie/" + token
 
-    def list_invitations(connection, user):
+    def list_invitations(connection, user, status):
         return connection.execute(
-            "SELECT i.digest, i.email, u.email AS issuer_email, "
+            "WITH scoped AS (SELECT i.digest, i.email, u.email AS issuer_email, "
+            "COALESCE(issuer.created_at, i.expires_at) AS sort_time, "
             "CASE WHEN i.used_by IS NOT NULL THEN 'used' "
             "WHEN r.digest IS NOT NULL THEN 'revoked' "
             "WHEN i.expires_at<=? THEN 'expired' ELSE 'active' END AS status "
             "FROM invitations i LEFT JOIN invitation_issuers issuer ON issuer.digest=i.digest "
             "LEFT JOIN users u ON u.id=issuer.user_id "
             "LEFT JOIN invitation_revocations r ON r.digest=i.digest "
-            f"WHERE {INVITATION_SCOPE} ORDER BY COALESCE(issuer.created_at, i.expires_at) DESC, i.digest",
-            (int(time.time()), user["role"] in INVITATION_MANAGERS, user["id"]),
+            f"WHERE {INVITATION_SCOPE}) "
+            "SELECT digest, email, issuer_email, status FROM scoped "
+            "WHERE (?='all' OR status=?) ORDER BY sort_time DESC, digest",
+            (int(time.time()), user["role"] in INVITATION_MANAGERS, user["id"], status, status),
         ).fetchall()
 
-    def revoke_invitation(connection):
+    def revoke_invitation(connection, status):
         invitation_id = request.form.get("invitation_id", "")
         if not re.fullmatch(r"[0-9a-f]{64}", invitation_id):
             abort(400)
@@ -277,7 +280,7 @@ def create_app(settings=None):
             ).rowcount
             if not changed:
                 abort(404, "Nie ma aktywnego zaproszenia, które możesz cofnąć.")
-        return redirect(url_for("panel"), code=303)
+        return redirect(url_for("panel", status=status) if status != "active" else url_for("panel"), code=303)
 
     def manage_access(connection, action):
         target_id = request.form.get("user_id", type=int)
@@ -311,6 +314,10 @@ def create_app(settings=None):
         access_view = request.args.get("widok") == "dostep"
         if access_view and user["role"] != "guardian":
             abort(403)
+        removed_view = request.args.get("czlonkowie") == "usunieci"
+        invitation_status = request.args.get("status", "active")
+        if invitation_status not in INVITATION_LABELS and invitation_status != "all":
+            invitation_status = "active"
         acknowledged = connection.execute(
             "SELECT 1 FROM welcome_acknowledgements WHERE user_id=?", (user["id"],)
         ).fetchone()
@@ -321,14 +328,18 @@ def create_app(settings=None):
             if access_view and acknowledged:
                 accounts = connection.execute(
                     "SELECT u.id, u.name, u.email, COALESCE(a.role, 'member') AS role, a.revoked_at "
-                    "FROM users u LEFT JOIN user_access a ON a.user_id=u.id ORDER BY u.email"
+                    "FROM users u LEFT JOIN user_access a ON a.user_id=u.id "
+                    "WHERE (a.revoked_at IS NOT NULL)=? ORDER BY u.email",
+                    (removed_view,),
                 ).fetchall()
             elif acknowledged:
-                invites = list_invitations(connection, user)
+                invites = list_invitations(connection, user, invitation_status)
             return render_template("member.html", welcome=not acknowledged, csrf=csrf_token(),
                                    error=error, invite_link=link, invite_email=email,
                                    user=user, role_labels=ROLE_LABELS, access_view=access_view,
-                                   accounts=accounts, invitations=invites, invitation_labels=INVITATION_LABELS,
+                                   accounts=accounts, removed_view=removed_view,
+                                   invitations=invites, invitation_labels=INVITATION_LABELS,
+                                   invitation_status=invitation_status,
                                    show_invitation_issuers=user["role"] in INVITATION_MANAGERS), status
 
         if request.method == "GET":
@@ -339,7 +350,7 @@ def create_app(settings=None):
         if action == "revoke-invitation":
             if not acknowledged:
                 abort(403)
-            return revoke_invitation(connection)
+            return revoke_invitation(connection, invitation_status)
         if action in {"grant-board", "remove-board", "revoke-access"}:
             if not acknowledged:
                 abort(403)
