@@ -1,5 +1,15 @@
 <section class="member-invitations" aria-labelledby="invitations-title">
   <h3 id="invitations-title">{{ "Wszystkie zaproszenia" if show_invitation_issuers else "Moje zaproszenia" }}</h3>
+  <form method="get" action="{{ url_for('panel') }}" class="invite-filter">
+    <label for="invite-status">Status zaproszeń</label>
+    <select id="invite-status" name="status">
+      {% for status, label in invitation_labels.items() %}
+      <option value="{{ status }}"{% if status == invitation_status %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+      <option value="all"{% if invitation_status == "all" %} selected{% endif %}>Wszystkie</option>
+    </select>
+    <button type="submit">Pokaż</button>
+  </form>
   {% if invitations %}
   <ul>
     {% for invite in invitations %}
@@ -10,7 +20,7 @@
       <p>{{ "Wystawca: " ~ invite.issuer_email if invite.issuer_email else "Zaproszenie techniczne" }}</p>
       {% endif %}
       {% if invite.status == "active" %}
-      <form method="post" action="{{ url_for('panel') }}">
+      <form method="post" action="{{ url_for('panel', status=invitation_status) if invitation_status != 'active' else url_for('panel') }}">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <input type="hidden" name="invitation_id" value="{{ invite.digest }}">
         <button type="submit" name="action" value="revoke-invitation"
@@ -21,6 +31,6 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p>Brak zaproszeń.</p>
+  <p>Brak zaproszeń w tym widoku.</p>
   {% endif %}
 </section>
