@@ -32,6 +32,14 @@
 .annotations-ui button[aria-pressed="true"] { background: #d66c2c; color: #100d0a; }
 .annotations-ui :focus-visible { outline: 2px solid #a8d8ff; outline-offset: 3px; }
 
+.annotations-mode :is(a, button, input, textarea, select, label, summary):not(.annotations-ui *) {
+  cursor: not-allowed;
+}
+
+.annotations-picking :is(a, button, [data-annotation-target], [data-question-id]):not(.annotations-ui *) {
+  cursor: crosshair;
+}
+
 .annotations-outline {
   position: fixed;
   z-index: 1199;
