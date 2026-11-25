@@ -134,6 +134,53 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(self.response(api + "&zakres=faq").status_code, 401)
         self.assertEqual(self.response(image_url).status_code, 401)
 
+    def test_annotation_discussion_replies_and_role_checked_closure(self):
+        author, reader = self.access_accounts()
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute("UPDATE users SET name='Inny członek' WHERE id=2")
+            connection.executemany(
+                "INSERT INTO annotations (author_id,draft_key,view,target,path,comment,image,created_at) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                [(1, "first", "faq:home", "brand", "/", "Uwaga", b"fixture", 1),
+                 (2, "second", "faq:home", "brand", "/", "Druga uwaga", b"fixture", 1)],
+            )
+        first = "/panel?widok=adnotacje&watek=1"
+        second = "/panel?widok=adnotacje&watek=2"
+
+        def change(client, path, action, **data):
+            self.client = client
+            form = {"csrf": self.csrf("/panel"), "action": action} | data
+            return client.post(path, data=form, base_url=self.base)
+
+        first_draft = "00000000-0000-4000-8000-000000000001"
+        second_draft = "00000000-0000-4000-8000-000000000002"
+        fresh = author.get(first, base_url=self.base).get_json()
+        self.assertFalse(fresh["has_replies"])
+        self.assertTrue(fresh["can_close"])
+        own = change(author, first, "reply", comment="Własna odpowiedź", draft=first_draft).get_json()
+        self.assertTrue(own["has_replies"])
+        self.assertEqual(change(reader, first, "close").status_code, 403)
+        self.assertEqual(change(reader, first, "reply", comment="Odpowiedź członka",
+                                draft=second_draft, csrf="bad").status_code, 400)
+        other = change(reader, first, "reply", comment="Odpowiedź członka", draft=second_draft).get_json()
+        self.assertEqual([row["author"] for row in other["replies"]], ["Ania Nowak", "Inny członek"])
+        self.assertEqual([row["comment"] for row in other["replies"]], ["Własna odpowiedź", "Odpowiedź członka"])
+        self.assertLess(other["replies"][0]["id"], other["replies"][1]["id"])
+        self.assertGreater(other["replies"][0]["created_at"], 0)
+        closed = change(author, first, "close").get_json()
+        self.assertTrue(closed["closed"])
+        self.assertTrue(closed["has_replies"])
+        self.assertFalse(closed["can_close"])
+        self.assertEqual(change(reader, first, "reply", comment="Spóźniona",
+                                draft="00000000-0000-4000-8000-000000000003").status_code, 409)
+        retry = change(reader, first, "reply", comment="Odpowiedź członka", draft=second_draft)
+        self.assertEqual(retry.get_json()["replies"], closed["replies"])
+        self.assertEqual(reader.get(first, base_url=self.base).get_json()["replies"], closed["replies"])
+        self.assertEqual(change(author, second, "close").status_code, 403)
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertTrue(change(author, second, "close").get_json()["closed"])
+        self.assertEqual(self.app.test_client().get(first, base_url=self.base).status_code, 401)
+
     def test_expired_invite_cannot_be_used_at_callback(self):
         link = self.invite()
         self.response(link)
