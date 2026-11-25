@@ -1,3 +1,5 @@
+import { annotationExport } from './annotation-export.js';
+
 const sessionUrl = '/panel?widok=sesja-adnotacji';
 const targetSelector = [
   '[data-annotation-target]',
@@ -116,6 +118,33 @@ async function start() {
           </form>
           <button type="button" data-close-thread hidden>Zamknij dyskusję</button>
         </section>
+        <section class="annotations-export" data-export hidden aria-label="Publikacja na GitHubie">
+          <button type="button" data-export-open hidden>Zgłoś na GitHub</button>
+          <button type="button" data-export-check hidden>Sprawdź wynik na GitHubie</button>
+          <a data-export-result hidden target="_blank" rel="noopener">Otwórz zgłoszenie na GitHubie</a>
+          <p data-export-status role="status"></p>
+          <div data-export-fields hidden>
+            <form>
+              <label for="annotation-export-title">Tytuł zgłoszenia</label>
+              <input id="annotation-export-title" name="title" maxlength="120" required>
+              <label for="annotation-export-summary">Opis zgłoszenia</label>
+              <textarea id="annotation-export-summary" name="summary" rows="3" maxlength="3000" required></textarea>
+              <fieldset><legend>Odpowiedzi do opublikowania</legend><div data-export-choices></div></fieldset>
+              <button type="submit">Pokaż podgląd zgłoszenia</button>
+            </form>
+          </div>
+          <div data-export-preview hidden>
+            <h3>Podgląd publicznego zgłoszenia</h3>
+            <p>Repozytorium OtisRed/Intersophia</p>
+            <strong data-export-title></strong>
+            <pre data-export-body></pre>
+            <img alt="Wycinek do publicznego zgłoszenia">
+            <div class="annotations-actions">
+              <button type="button" data-export-edit>Edytuj</button>
+              <button type="button" data-export-confirm disabled>Potwierdź i opublikuj</button>
+            </div>
+          </div>
+        </section>
       </section>
       <form class="annotations-actions" method="dialog"><button type="submit">Zamknij</button></form>
     </dialog>`;
@@ -148,6 +177,7 @@ async function start() {
   const closeThread = library.querySelector('[data-close-thread]');
   const replyDateFormat = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
   const api = '/panel?widok=adnotacje';
+  const publication = annotationExport(library, session.csrf, api);
   const scope = location.pathname === '/panel' ? `panel:${currentPanelView()}` : 'faq';
   let entries = [];
   let listAttempt = 0;
@@ -205,6 +235,7 @@ async function start() {
   }
 
   function showEntry(entry) {
+    publication.reset();
     selectedEntry = entry;
     detail.hidden = false;
     detail.querySelector('[data-author]').textContent = entry.author;
@@ -243,6 +274,7 @@ async function start() {
     threadStatus.textContent = thread.closed ? 'Dyskusja zamknięta.' : thread.has_replies ? '' : 'Brak odpowiedzi.';
     replyForm.hidden = thread.closed;
     closeThread.hidden = !thread.can_close;
+    publication.show(selectedEntry, thread);
   }
 
   async function loadDiscussion(id) {
@@ -367,6 +399,7 @@ async function start() {
     libraryStatus.textContent = 'Wczytuję uwagi…';
     detail.hidden = true;
     selectedEntry = null;
+    publication.reset();
     if (library.open) positionContext();
     const query = new URLSearchParams({ zakres: scope, filtr: filter.value });
     try {
@@ -495,6 +528,7 @@ async function start() {
   closeThread.addEventListener('click', () => updateDiscussion('close'));
   library.addEventListener('close', () => {
     selectedEntry = null;
+    publication.reset();
     detail.hidden = true;
     detail.querySelector('[data-saved-preview]').removeAttribute('src');
     positionContext();

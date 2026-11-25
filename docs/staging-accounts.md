@@ -21,6 +21,23 @@ Create a Python virtual environment, install `requirements.txt`, then run `pytho
 - Existing accounts, roles, access blocks and welcome acknowledgements are shared. A member signs in once on the production domain with the same Google account. Existing invitations keep the hostname in their URLs and share a single usage and revocation history.
 - Test schema migrations and destructive scenarios on an isolated database. Back up the live SQLite file before migrations and keep migrations compatible with both running releases while both domains serve accounts.
 
+## Publishing annotations to GitHub
+
+Preview works without a GitHub App. Enable sending only after installing a dedicated
+app on `OtisRed/Intersophia` with repository Issues write permission. Set
+`INTERSOPHIA_GITHUB_APP_ID`, `INTERSOPHIA_GITHUB_INSTALLATION_ID` and
+`INTERSOPHIA_GITHUB_KEY_FILE` in the staging service configuration. The last
+variable names a private PEM readable by the service. Never put the private key
+in a release or in Git. Both IDs are numeric.
+
+The panel asks for a preview confirmation and retains the issue URL once known.
+Only the confirmed image copy becomes public, at the host that published the
+issue. Preserve that origin and the shared account database across releases.
+`Sprawdź wynik na GitHubie` reconciles uncertain outcomes by checking for the
+app and publication identifier. An uncertain result never causes another issue
+creation request, including after a restart. Resolve prolonged uncertainty
+against GitHub before changing the record.
+
 To assign the first Opiekun after their normal invited Google sign-in, run
 `flask --app membership:create_app bootstrap-guardian <gmail>` with the staging
 service account, working directory and private environment. This operation

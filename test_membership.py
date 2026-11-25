@@ -8,7 +8,7 @@ import time
 import unittest
 from contextlib import closing
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from membership import create_app, digest
 
@@ -180,6 +180,67 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
         self.assertTrue(change(author, second, "close").get_json()["closed"])
         self.assertEqual(self.app.test_client().get(first, base_url=self.base).status_code, 401)
+
+    def test_annotation_export_preview_permissions_and_ambiguous_retry(self):
+        author, reader = self.access_accounts()
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute(
+                "INSERT INTO annotations (author_id,draft_key,view,target,path,comment,image,created_at) "
+                "VALUES (1,'preview','faq:home','brand','/','Uwaga',?,1)",
+                (b"approved-image",),
+            )
+        base = "/panel?widok=adnotacje&watek=1"
+
+        def export(client, action, **fields):
+            self.client = client
+            return client.post(base + f"&publikacja={action}", base_url=self.base,
+                               data={"csrf": self.csrf("/panel")} | fields)
+
+        fields = {"title": "Tytuł", "summary": "Prywatny namiar test@gmail.com z <div> i @tester"}
+        self.assertEqual(export(author, "preview", **fields).status_code, 409)
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute(
+                "INSERT INTO annotation_replies (annotation_id,author_id,draft_key,comment,created_at) "
+                "VALUES (1,1,'draft','Wybrana odpowiedź',2), (1,2,'other','Pominięta odpowiedź',3)"
+            )
+            connection.execute("INSERT INTO annotation_closures VALUES (1,1,4)")
+        self.assertEqual(export(reader, "preview", **fields).status_code, 403)
+        self.assertEqual(export(author, "preview", **fields, reply=[999]).status_code, 400)
+        preview = export(author, "preview", **fields, reply=[1]).get_json()
+        self.assertTrue(preview["proof"])
+        self.assertNotIn("test@gmail.com", preview["body"])
+        self.assertNotIn("@tester", preview["body"])
+        self.assertNotIn("<div>", preview["body"])
+        self.assertIn("Wybrana odpowiedź", preview["body"])
+        self.assertNotIn("Pominięta odpowiedź", preview["body"])
+        self.assertEqual(export(author, "send", proof=preview["proof"]).status_code, 503)
+        with closing(sqlite3.connect(self.path)) as connection:
+            self.assertEqual(connection.execute("SELECT count(*) FROM annotation_publications").fetchone()[0], 0)
+
+        publisher = Mock()
+        publisher.create.side_effect = TimeoutError
+        publisher.find.side_effect = [None, 55]
+        self.app.extensions["annotation_github"] = publisher
+        self.assertEqual(export(author, "send", proof="tampered").status_code, 400)
+        self.assertEqual(export(author, "send", proof=preview["proof"]).get_json()["state"], "checking")
+        title, sent_body = publisher.create.call_args.args
+        self.assertEqual(title, "Tytuł")
+        self.assertTrue(sent_body.startswith(preview["body"]))
+        slug = re.search(r"publiczny_wycinek=([A-Za-z0-9_-]{43})", sent_body)[1]
+        image_path = f"/panel?publiczny_wycinek={slug}"
+        guest = self.app.test_client()
+        self.assertEqual(guest.get(image_path, base_url=self.base).status_code, 404)
+        self.assertEqual(export(author, "send", proof=preview["proof"]).get_json()["state"], "checking")
+        result = export(author, "check").get_json()
+        self.assertEqual(result, {"state": "published", "url": "https://github.com/OtisRed/Intersophia/issues/55"})
+        self.assertEqual(export(author, "send", proof=preview["proof"]).get_json(), result)
+        publisher.create.assert_called_once()
+        self.assertEqual(reader.get(base, base_url=self.base).get_json()["publication"], result)
+        public = guest.get(image_path, base_url=self.base)
+        self.assertEqual(public.mimetype, "image/png")
+        self.assertEqual(public.data, b"approved-image")
+        private = guest.get("/panel?widok=adnotacje&obraz=1", base_url=self.base)
+        self.assertEqual(private.status_code, 401)
 
     def test_expired_invite_cannot_be_used_at_callback(self):
         link = self.invite()

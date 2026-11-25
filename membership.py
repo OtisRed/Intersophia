@@ -12,7 +12,10 @@ import click
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client import OAuthError
 from flask import Flask, Response, abort, g, redirect, render_template, request, session, url_for
+from itsdangerous import BadData, URLSafeTimedSerializer
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+from github_annotations import REPO, GitHubPublisher, GitHubRejected, public_text, redact
 
 GMAIL = re.compile(r"[a-z0-9][a-z0-9.]{0,62}[a-z0-9]@gmail\.com|[a-z0-9]@gmail\.com")
 INVITES_PER_DAY = 10
@@ -66,6 +69,14 @@ CREATE TABLE IF NOT EXISTS annotation_closures (
     annotation_id INTEGER PRIMARY KEY REFERENCES annotations(id),
     closed_by INTEGER NOT NULL REFERENCES users(id),
     closed_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS annotation_publications (
+    annotation_id INTEGER PRIMARY KEY REFERENCES annotations(id),
+    public_key TEXT NOT NULL UNIQUE,
+    image BLOB NOT NULL,
+    requested_at INTEGER NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('sending', 'checking', 'failed', 'published')),
+    issue_number INTEGER
 );
 CREATE TABLE IF NOT EXISTS user_access (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
@@ -145,6 +156,9 @@ def create_app(settings=None):
         GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
         GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
         PUBLIC_ORIGIN=os.environ.get("INTERSOPHIA_ORIGIN", "https://dev.intersophia.pl"),
+        ANNOTATION_GITHUB_APP_ID=os.environ.get("INTERSOPHIA_GITHUB_APP_ID"),
+        ANNOTATION_GITHUB_INSTALLATION_ID=os.environ.get("INTERSOPHIA_GITHUB_INSTALLATION_ID"),
+        ANNOTATION_GITHUB_KEY_FILE=os.environ.get("INTERSOPHIA_GITHUB_KEY_FILE"),
         SESSION_COOKIE_NAME="intersophia_accounts",
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
@@ -156,6 +170,12 @@ def create_app(settings=None):
         app.config.update(settings)
     if not app.secret_key or len(app.secret_key) < 32 or not app.config["DATABASE"]:
         raise RuntimeError("Configure a private session key (32+ characters) and database path")
+    app_id = app.config["ANNOTATION_GITHUB_APP_ID"]
+    installation_id = app.config["ANNOTATION_GITHUB_INSTALLATION_ID"]
+    key_file = app.config["ANNOTATION_GITHUB_KEY_FILE"]
+    if app_id and app_id.isdecimal() and installation_id and installation_id.isdecimal() and key_file:
+        app.extensions["annotation_github"] = GitHubPublisher(app_id, installation_id, key_file)
+    preview_signer = URLSafeTimedSerializer(app.secret_key, salt="annotation-publication-preview")
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
     oauth = OAuth(app)
     google = oauth.register(
@@ -225,18 +245,142 @@ def create_app(settings=None):
         closed = connection.execute(
             "SELECT 1 FROM annotation_closures WHERE annotation_id=?", (annotation_id,)
         ).fetchone() is not None
+        publication = connection.execute(
+            "SELECT state, issue_number FROM annotation_publications WHERE annotation_id=?", (annotation_id,)
+        ).fetchone()
         return {
             "replies": [dict(reply) for reply in replies],
             "has_replies": bool(replies),
             "closed": closed,
             "can_close": can_manage and not closed,
+            "can_publish": can_manage and bool(replies),
+            "publication_configured": "annotation_github" in app.extensions,
+            "publication": export_status(publication),
         }
+
+    def export_status(row):
+        state = row["state"] if row else "new"
+        number = row["issue_number"] if row else None
+        return {"state": state, "url": f"https://github.com/{REPO}/issues/{number}" if number else None}
+
+    def public_annotation_image(public_key):
+        if not TOKEN.fullmatch(public_key):
+            abort(404)
+        row = db().execute(
+            "SELECT image FROM annotation_publications WHERE public_key=? AND state='published'", (public_key,)
+        ).fetchone()
+        if row is None:
+            abort(404)
+        return Response(row["image"], mimetype="image/png")
+
+    def export_preview(connection, annotation, user):
+        title = " ".join(redact(request.form.get("title", "")).split())
+        summary = public_text(request.form.get("summary", "").strip())
+        chosen = set(request.form.getlist("reply", type=int))
+        replies = connection.execute(
+            "SELECT id,comment FROM annotation_replies WHERE annotation_id=? ORDER BY id", (annotation["id"],)
+        ).fetchall()
+        if not 0 < len(title) <= 120 or not 0 < len(summary) <= 5000:
+            abort(400)
+        if not chosen.issubset({reply["id"] for reply in replies}):
+            abort(400)
+        origin = app.config["PUBLIC_ORIGIN"].rstrip("/")
+        body = f"{summary}\n\nStrona: {origin}{annotation['path']}"
+        context = [public_text(reply["comment"]) for reply in replies if reply["id"] in chosen]
+        if context:
+            body += "\n\n### Wybrane odpowiedzi\n\n" + "\n\n---\n\n".join(context)
+        if len(body) > 12000:
+            abort(400)
+        payload = {"annotation_id": annotation["id"], "actor_id": user["id"], "title": title, "body": body}
+        return {"title": title, "body": body, "proof": preview_signer.dumps(payload)}
+
+    def annotation_export(connection, annotation_id):
+        request.max_content_length = 64 * 1024
+        require_csrf()
+        action = request.args["publikacja"]
+        publisher = app.extensions.get("annotation_github")
+        proof = None
+        if action == "send":
+            try:
+                proof = preview_signer.loads(request.form.get("proof", ""), max_age=900)
+            except BadData:
+                return {"error": "Podgląd wygasł. Przygotuj go ponownie."}, 400
+        connection.execute("BEGIN IMMEDIATE" if action == "send" else "BEGIN")
+        with connection:
+            user = logged_in()
+            if user is None:
+                abort(401)
+            annotation = connection.execute(
+                "SELECT id,author_id,path FROM annotations WHERE id=?", (annotation_id,)
+            ).fetchone()
+            if annotation is None:
+                abort(404)
+            if user["id"] != annotation["author_id"] and user["role"] != "guardian":
+                abort(403)
+            if not connection.execute(
+                "SELECT 1 FROM annotation_replies WHERE annotation_id=?", (annotation_id,)
+            ).fetchone():
+                return {"error": "Dodaj odpowiedź przed publikacją."}, 409
+            if action == "preview":
+                return export_preview(connection, annotation, user)
+            if action not in {"send", "check"}:
+                abort(400)
+            if proof and (proof["annotation_id"] != annotation_id or proof["actor_id"] != user["id"]):
+                abort(403)
+            row = connection.execute("SELECT * FROM annotation_publications WHERE annotation_id=?",
+                                     (annotation_id,)).fetchone()
+            if row and row["state"] == "published":
+                return export_status(row)
+            if publisher is None:
+                return {"error": "GitHub App nie jest jeszcze podpięta."}, 503
+            create = action == "send" and (row is None or row["state"] == "failed")
+            if create:
+                public_key = secrets.token_urlsafe(32)
+                requested_at = int(time.time())
+                connection.execute(
+                    "INSERT INTO annotation_publications (annotation_id,public_key,image,requested_at,state) "
+                    "SELECT id,?,image,?,'sending' FROM annotations WHERE id=? "
+                    "ON CONFLICT(annotation_id) DO UPDATE SET public_key=excluded.public_key,"
+                    "image=excluded.image,requested_at=excluded.requested_at,state='sending'",
+                    (public_key, requested_at, annotation_id),
+                )
+            elif row and row["state"] in {"sending", "checking"}:
+                public_key, requested_at = row["public_key"], row["requested_at"]
+            else:
+                return export_status(row)
+
+        marker = f"<!-- intersophia-publication:{public_key} -->"
+        try:
+            if create:
+                image_url = app.config["PUBLIC_ORIGIN"].rstrip("/") + url_for("panel", publiczny_wycinek=public_key)
+                body = f"{proof['body']}\n\n![Zatwierdzony wycinek]({image_url})\n\n{marker}"
+                number = publisher.create(proof["title"], body)
+            else:
+                number = publisher.find(marker, requested_at)
+            state = "published" if number else "checking"
+        except GitHubRejected:
+            number = None
+            state = "failed" if create else "checking"
+        except Exception:
+            # The issue may have been accepted before the response was lost.
+            number, state = None, "checking"
+        with connection:
+            connection.execute(
+                "UPDATE annotation_publications SET state=?,issue_number=? WHERE annotation_id=? "
+                "AND public_key=? AND state IN ('sending','checking')",
+                (state, number, annotation_id, public_key),
+            )
+            row = connection.execute("SELECT state, issue_number FROM annotation_publications WHERE annotation_id=?",
+                                     (annotation_id,)).fetchone()
+        return export_status(row)
 
     def annotation_discussion(connection, user):
         annotation_id = request.args.get("watek", type=int)
         if not annotation_id or not 0 < annotation_id <= 2**63 - 1:
             abort(404)
         writing = request.method == "POST"
+        if writing and "publikacja" in request.args:
+            return annotation_export(connection, annotation_id)
         if writing:
             require_csrf()
         connection.execute("BEGIN IMMEDIATE" if writing else "BEGIN")
@@ -495,6 +639,8 @@ def create_app(settings=None):
 
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
+        if request.method == "GET" and "publiczny_wycinek" in request.args:
+            return public_annotation_image(request.args["publiczny_wycinek"])
         user = logged_in()
         if request.args.get("widok") == "adnotacje":
             return annotations(user)
@@ -598,6 +744,7 @@ def create_app(settings=None):
         db().execute("SELECT id FROM annotations LIMIT 1").fetchone()
         db().execute("SELECT id FROM annotation_replies LIMIT 1").fetchone()
         db().execute("SELECT annotation_id FROM annotation_closures LIMIT 1").fetchone()
+        db().execute("SELECT annotation_id FROM annotation_publications LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 

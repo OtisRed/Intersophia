@@ -125,6 +125,26 @@
 .annotations-discussion li p { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .annotations-discussion [data-thread-status]:empty { display: none; }
 .annotations-discussion [data-close-thread] { margin-top: 8px; }
+.annotations-export { margin-top: 16px; padding-top: 12px; border-top: 1px solid #4a5661; }
+.annotations-export h3 { margin: 0; font-size: 1rem; }
+.annotations-export [data-export-fields], .annotations-export [data-export-preview] { margin-top: 10px; }
+.annotations-export input[name="title"] {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #4a5661;
+  border-radius: 9px;
+  background: #0b1926;
+  color: inherit;
+  font: inherit;
+}
+.annotations-export fieldset { margin: 8px 0; border: 1px solid #4a5661; border-radius: 8px; }
+.annotations-export label, .annotations-export strong { overflow-wrap: anywhere; }
+.annotations-export input[type="checkbox"] { margin-inline-end: 8px; }
+.annotations-export pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.annotations-export [data-export-status]:empty { display: none; }
+.annotations-export a { color: #a8d8ff; }
 .annotations-dialog select {
   padding: 6px 10px;
   border: 1px solid #4a5661;
