@@ -77,6 +77,19 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(self.callback().status_code, 403)
         self.assertEqual(self.response("/panel").location, "/logowanie")
 
+    def test_annotation_session_requires_an_active_member(self):
+        path = "/panel?widok=sesja-adnotacji"
+        guest = self.response(path)
+        self.assertEqual(guest.status_code, 401)
+        self.assertEqual(guest.get_json(), {"annotations": False})
+        self.member_ready()
+        active = self.response(path)
+        self.assertEqual(active.get_json(), {"annotations": True})
+        self.assertEqual(active.headers["Cache-Control"], "no-store")
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute("insert into user_access values (1, 'member', ?)", (int(time.time()),))
+        self.assertEqual(self.response(path).status_code, 401)
+
     def test_expired_invite_cannot_be_used_at_callback(self):
         link = self.invite()
         self.response(link)

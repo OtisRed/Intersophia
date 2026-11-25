@@ -1,0 +1,62 @@
+.annotations-ui {
+  color: #e6eef8;
+  font: 14px/1.45 system-ui, sans-serif;
+}
+
+.annotations-toolbar {
+  position: fixed;
+  z-index: 1200;
+  inset-inline-end: 16px;
+  inset-block-end: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+}
+
+.annotations-ui button,
+.annotations-dialog textarea,
+.annotations-hint {
+  padding: 8px 12px;
+  border: 1px solid #4a5661;
+  border-radius: 9px;
+  background: #0b1926;
+  color: #e6eef8;
+  font: inherit;
+}
+
+.annotations-ui button { min-height: 44px; cursor: pointer; }
+.annotations-ui button:hover { border-color: #d66c2c; }
+.annotations-ui button[aria-pressed="true"] { background: #d66c2c; color: #100d0a; }
+.annotations-ui :focus-visible { outline: 2px solid #a8d8ff; outline-offset: 3px; }
+
+.annotations-outline {
+  position: fixed;
+  z-index: 1199;
+  pointer-events: none;
+  box-sizing: border-box;
+  outline: 2px solid #d66c2c;
+  background: rgba(214, 108, 44, .2);
+}
+
+.annotations-dialog {
+  box-sizing: border-box;
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  margin: auto;
+  padding: 18px;
+  border: 1px solid #4a5661;
+  border-radius: 14px;
+  background: #071927;
+  color: #e6eef8;
+}
+
+.annotations-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.annotations-dialog h2 { margin: 0 0 12px; font-size: 1.15rem; }
+.annotations-dialog [data-progress]:empty { display: none; }
+.annotations-dialog img { max-width: 100%; max-height: 36dvh; object-fit: contain; margin-bottom: 12px; }
+.annotations-dialog label { display: block; margin-bottom: 4px; }
+.annotations-dialog textarea { box-sizing: border-box; width: 100%; resize: vertical; }
+.annotations-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
