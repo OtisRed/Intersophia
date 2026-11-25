@@ -60,3 +60,38 @@
 .annotations-dialog label { display: block; margin-bottom: 4px; }
 .annotations-dialog textarea { box-sizing: border-box; width: 100%; resize: vertical; }
 .annotations-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.annotations-toolbar [data-list-status] {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #0b1926;
+}
+.annotations-ui button:disabled { opacity: .55; cursor: default; }
+.annotations-markers { position: fixed; z-index: 1198; inset: 0; pointer-events: none; }
+.annotations-markers button {
+  position: absolute;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 1px 6px;
+  border: 1px solid #100d0a;
+  border-radius: 50%;
+  background: #d66c2c;
+  color: #100d0a;
+  font-weight: 750;
+  pointer-events: auto;
+}
+.annotations-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.annotations-list li + li { margin-top: 6px; }
+.annotations-list button { width: 100%; text-align: start; overflow-wrap: anywhere; }
+.annotations-detail [data-comment] { white-space: pre-wrap; overflow-wrap: anywhere; }
+.annotations-detail [data-location] { display: block; color: #a8d8ff; }
+.annotations-dialog select {
+  padding: 6px 10px;
+  border: 1px solid #4a5661;
+  border-radius: 8px;
+  background: #0b1926;
+  color: inherit;
+  font: inherit;
+}
+[data-library-status]:empty { display: none; }
+.annotations-dialog label[for="annotation-filter"] { display: inline; margin-inline-end: 6px; }
+.annotations-dialog [data-library-status], .annotations-list { margin-top: 10px; }

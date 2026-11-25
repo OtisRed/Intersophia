@@ -4,13 +4,14 @@ import os
 import re
 import secrets
 import sqlite3
+import struct
 import time
 from pathlib import Path
 
 import click
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client import OAuthError
-from flask import Flask, abort, g, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, g, redirect, render_template, request, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 GMAIL = re.compile(r"[a-z0-9][a-z0-9.]{0,62}[a-z0-9]@gmail\.com|[a-z0-9]@gmail\.com")
@@ -22,6 +23,15 @@ ROLE_LABELS = {"member": "Członek SKN", "board": "Zarząd", "guardian": "Opieku
 INVITATION_LABELS = {"active": "Aktywne", "used": "Wykorzystane", "expired": "Wygasłe", "revoked": "Cofnięte"}
 INVITATION_MANAGERS = {"board", "guardian"}
 INVITATION_SCOPE = "(? OR issuer.user_id=?)"
+ANNOTATION_IMAGE_LIMIT = 512 * 1024
+ANNOTATION_KEY = re.compile(r"[a-z0-9-]{1,100}")
+ANNOTATION_DRAFT = re.compile(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}")
+PANEL_ANNOTATION_TARGETS = {
+    "panel:welcome": {"welcome-title", "community-rules"},
+    "panel:invites": {"member-panel", "member-nav", "invite-title", "invite-email-label",
+                      "invite-create", "invitation-list", "invitation-filter"},
+    "panel:access": {"member-panel", "member-nav", "access-title", "member-filter"},
+}
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
@@ -29,6 +39,19 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS annotations (
+    id INTEGER PRIMARY KEY,
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    draft_key TEXT NOT NULL,
+    view TEXT NOT NULL,
+    target TEXT NOT NULL,
+    path TEXT NOT NULL,
+    comment TEXT NOT NULL,
+    image BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(author_id, draft_key)
+);
+CREATE INDEX IF NOT EXISTS annotations_view ON annotations(view, id);
 CREATE TABLE IF NOT EXISTS user_access (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
     role TEXT NOT NULL CHECK (role IN ('member', 'board', 'guardian')),
@@ -75,6 +98,28 @@ def gmail(value):
 
 def digest(token):
     return hashlib.sha256(token.encode("ascii")).hexdigest()
+
+
+def annotation_path(view, target):
+    if view in PANEL_ANNOTATION_TARGETS:
+        if target in PANEL_ANNOTATION_TARGETS[view]:
+            return "/panel?widok=dostep" if view == "panel:access" else "/panel"
+        return None
+    if view.startswith("faq:") and ANNOTATION_KEY.fullmatch(question := view[4:]):
+        if target in {"brand", "resources", f"faq:{question}:question", f"faq:{question}:answer"}:
+            return "/" if question == "home" else f"/#{question}"
+    return None
+
+
+def valid_annotation_image(image):
+    if not 45 <= len(image) <= ANNOTATION_IMAGE_LIMIT:
+        return False
+    if not image.startswith(b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR"):
+        return False
+    if not image.endswith(b"\x00\x00\x00\x00IEND\xaeB\x60\x82"):
+        return False
+    width, height = struct.unpack_from("!II", image, 16)
+    return 0 < width <= 2048 and 0 < height <= 2048 and width * height <= 2_000_000
 
 
 def create_app(settings=None):
@@ -154,6 +199,65 @@ def create_app(settings=None):
             session.clear()
             return None
         return user
+
+    def annotations(user):
+        if user is None:
+            abort(401)
+        connection = db()
+        if request.method == "POST":
+            request.max_content_length = ANNOTATION_IMAGE_LIMIT + 24 * 1024
+            require_csrf()
+            view = request.form.get("view", "")
+            target = request.form.get("target", "")
+            path = annotation_path(view, target)
+            comment = request.form.get("comment", "").strip()
+            draft = request.form.get("draft", "")
+            uploaded = request.files.get("image")
+            image = uploaded.read(ANNOTATION_IMAGE_LIMIT + 1) if uploaded else b""
+            if not path or not 0 < len(comment) <= 3000 or not ANNOTATION_DRAFT.fullmatch(draft):
+                abort(400)
+            if not valid_annotation_image(image):
+                abort(400)
+            if view == "panel:access" and user["role"] != "guardian":
+                abort(403)
+            connection.execute("BEGIN IMMEDIATE")
+            with connection:
+                actor = logged_in()
+                if actor is None:
+                    abort(401)
+                if view == "panel:access" and actor["role"] != "guardian":
+                    abort(403)
+                connection.execute(
+                    "INSERT INTO annotations (author_id,draft_key,view,target,path,comment,image,created_at) "
+                    "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(author_id,draft_key) DO NOTHING",
+                    (actor["id"], draft, view, target, path, comment, image, int(time.time())),
+                )
+                annotation_id = connection.execute(
+                    "SELECT id FROM annotations WHERE author_id=? AND draft_key=?", (actor["id"], draft)
+                ).fetchone()["id"]
+            return {"id": annotation_id}, 201
+
+        if "obraz" in request.args:
+            image_id = request.args.get("obraz", type=int)
+            if not image_id or not 0 < image_id <= 2**63 - 1:
+                abort(404)
+            row = connection.execute("SELECT image FROM annotations WHERE id=?", (image_id,)).fetchone()
+            if row is None:
+                abort(404)
+            return Response(row["image"], mimetype="image/png")
+
+        scope = request.args.get("zakres", "")
+        if scope not in {"faq", *PANEL_ANNOTATION_TARGETS}:
+            abort(400)
+        entries = connection.execute(
+            "SELECT a.id,a.view,a.target,a.path,a.comment,a.created_at,"
+            "COALESCE(NULLIF(u.name,''),'Członek SKN') AS author,"
+            "a.author_id=? AS mine FROM annotations a JOIN users u ON u.id=a.author_id "
+            "WHERE (a.view=? OR (?='faq' AND a.view LIKE 'faq:%')) AND (NOT ? OR a.author_id=?) "
+            "ORDER BY a.id DESC",
+            (user["id"], scope, scope, request.args.get("filtr") == "moje", user["id"]),
+        )
+        return {"items": [dict(row) for row in entries]}
 
     def invitation(connection, hashed):
         return connection.execute(
@@ -308,8 +412,10 @@ def create_app(settings=None):
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
         user = logged_in()
+        if request.args.get("widok") == "adnotacje":
+            return annotations(user)
         if request.method == "GET" and request.args.get("widok") == "sesja-adnotacji":
-            return {"annotations": True} if user is not None else ({"annotations": False}, 401)
+            return {"annotations": True, "csrf": csrf_token()} if user is not None else ({"annotations": False}, 401)
         if user is None:
             return redirect(url_for("login"), code=303)
         connection = db()
@@ -405,6 +511,7 @@ def create_app(settings=None):
         db().execute("SELECT count(*) FROM welcome_acknowledgements").fetchone()
         db().execute("SELECT role FROM user_access LIMIT 1").fetchone()
         db().execute("SELECT digest FROM invitation_revocations LIMIT 1").fetchone()
+        db().execute("SELECT id FROM annotations LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 

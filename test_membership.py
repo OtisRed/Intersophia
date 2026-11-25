@@ -1,4 +1,6 @@
+import base64
 import html
+import io
 import re
 import sqlite3
 import tempfile
@@ -84,11 +86,53 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(guest.get_json(), {"annotations": False})
         self.member_ready()
         active = self.response(path)
-        self.assertEqual(active.get_json(), {"annotations": True})
+        self.assertIs(active.get_json()["annotations"], True)
+        self.assertEqual(active.get_json()["csrf"], self.csrf("/panel"))
         self.assertEqual(active.headers["Cache-Control"], "no-store")
         with closing(sqlite3.connect(self.path)) as connection, connection:
             connection.execute("insert into user_access values (1, 'member', ?)", (int(time.time()),))
         self.assertEqual(self.response(path).status_code, 401)
+
+    def test_annotation_save_filters_and_private_image(self):
+        author, reader = self.access_accounts()
+        self.client = author
+        csrf = self.csrf("/panel")
+        api = "/panel?widok=adnotacje"
+        image = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+        )
+
+        def save(**overrides):
+            form = {"view": "faq:kim-jestesmy", "target": "faq:kim-jestesmy:answer", "comment": "Próba zapisu",
+                    "draft": "00000000-0000-4000-8000-000000000001", "csrf": csrf, "image": (io.BytesIO(image), "test.png")}
+            return self.client.post(api, data=form | overrides, base_url=self.base)
+
+        self.assertEqual(save(csrf="wrong").status_code, 400)
+        self.assertEqual(save(image=(io.BytesIO(b"<svg>"), "test.png")).status_code, 400)
+        self.assertEqual(save(view="panel:access", target="access-title").status_code, 403)
+        created = save()
+        self.assertEqual(created.status_code, 201)
+        annotation_id = created.get_json()["id"]
+        self.assertEqual(save().get_json()["id"], annotation_id)
+        own = self.response(api + "&zakres=faq&filtr=moje").get_json()["items"]
+        self.assertEqual([entry["id"] for entry in own], [annotation_id])
+        self.assertEqual(own[0]["path"], "/#kim-jestesmy")
+        self.assertEqual(own[0]["comment"], "Próba zapisu")
+        self.assertNotIn("image", own[0])
+        self.client = reader
+        self.assertEqual(self.response(api + "&zakres=faq&filtr=moje").get_json()["items"], [])
+        shared = self.response(api + "&zakres=faq").get_json()["items"]
+        self.assertEqual([entry["id"] for entry in shared], [annotation_id])
+        self.assertEqual(shared[0]["mine"], 0)
+        self.assertEqual(self.response(api + "&zakres=panel:invites").get_json()["items"], [])
+        image_url = f"{api}&obraz={annotation_id}"
+        fetched = self.response(image_url)
+        self.assertEqual(fetched.mimetype, "image/png")
+        self.assertEqual(fetched.data, image)
+        self.assertEqual(fetched.headers["Cache-Control"], "no-store")
+        self.client = self.app.test_client()
+        self.assertEqual(self.response(api + "&zakres=faq").status_code, 401)
+        self.assertEqual(self.response(image_url).status_code, 401)
 
     def test_expired_invite_cannot_be_used_at_callback(self):
         link = self.invite()
