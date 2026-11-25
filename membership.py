@@ -52,6 +52,21 @@ CREATE TABLE IF NOT EXISTS annotations (
     UNIQUE(author_id, draft_key)
 );
 CREATE INDEX IF NOT EXISTS annotations_view ON annotations(view, id);
+CREATE TABLE IF NOT EXISTS annotation_replies (
+    id INTEGER PRIMARY KEY,
+    annotation_id INTEGER NOT NULL REFERENCES annotations(id),
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    draft_key TEXT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(annotation_id, author_id, draft_key)
+);
+CREATE INDEX IF NOT EXISTS annotation_reply_order ON annotation_replies(annotation_id, id);
+CREATE TABLE IF NOT EXISTS annotation_closures (
+    annotation_id INTEGER PRIMARY KEY REFERENCES annotations(id),
+    closed_by INTEGER NOT NULL REFERENCES users(id),
+    closed_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS user_access (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
     role TEXT NOT NULL CHECK (role IN ('member', 'board', 'guardian')),
@@ -200,10 +215,79 @@ def create_app(settings=None):
             return None
         return user
 
+    def discussion_state(connection, annotation_id, can_manage):
+        replies = connection.execute(
+            "SELECT r.id,r.comment,r.created_at,COALESCE(NULLIF(u.name,''),'Członek SKN') AS author "
+            "FROM annotation_replies r JOIN users u ON u.id=r.author_id "
+            "WHERE r.annotation_id=? ORDER BY r.id",
+            (annotation_id,),
+        ).fetchall()
+        closed = connection.execute(
+            "SELECT 1 FROM annotation_closures WHERE annotation_id=?", (annotation_id,)
+        ).fetchone() is not None
+        return {
+            "replies": [dict(reply) for reply in replies],
+            "has_replies": bool(replies),
+            "closed": closed,
+            "can_close": can_manage and not closed,
+        }
+
+    def annotation_discussion(connection, user):
+        annotation_id = request.args.get("watek", type=int)
+        if not annotation_id or not 0 < annotation_id <= 2**63 - 1:
+            abort(404)
+        writing = request.method == "POST"
+        if writing:
+            require_csrf()
+        connection.execute("BEGIN IMMEDIATE" if writing else "BEGIN")
+        with connection:
+            actor = logged_in() if writing else user
+            if actor is None:
+                abort(401)
+            annotation = connection.execute(
+                "SELECT author_id FROM annotations WHERE id=?", (annotation_id,)
+            ).fetchone()
+            if annotation is None:
+                abort(404)
+            can_manage = actor["id"] == annotation["author_id"] or actor["role"] == "guardian"
+            if writing:
+                action = request.form.get("action")
+                if action == "close":
+                    if not can_manage:
+                        abort(403)
+                    connection.execute(
+                        "INSERT INTO annotation_closures VALUES (?,?,?) ON CONFLICT(annotation_id) DO NOTHING",
+                        (annotation_id, actor["id"], int(time.time())),
+                    )
+                elif action == "reply":
+                    comment = request.form.get("comment", "").strip()
+                    draft = request.form.get("draft", "")
+                    if not 0 < len(comment) <= 3000 or not ANNOTATION_DRAFT.fullmatch(draft):
+                        abort(400)
+                    identifiers = (annotation_id, actor["id"], draft)
+                    if not connection.execute(
+                        "SELECT 1 FROM annotation_replies WHERE annotation_id=? AND author_id=? AND draft_key=?",
+                        identifiers,
+                    ).fetchone():
+                        if connection.execute(
+                            "SELECT 1 FROM annotation_closures WHERE annotation_id=?", (annotation_id,)
+                        ).fetchone():
+                            return {"error": "Dyskusja jest zamknięta."}, 409
+                        connection.execute(
+                            "INSERT INTO annotation_replies (annotation_id,author_id,draft_key,comment,created_at) "
+                            "VALUES (?,?,?,?,?)",
+                            (*identifiers, comment, int(time.time())),
+                        )
+                else:
+                    abort(400)
+            return discussion_state(connection, annotation_id, can_manage)
+
     def annotations(user):
         if user is None:
             abort(401)
         connection = db()
+        if "watek" in request.args:
+            return annotation_discussion(connection, user)
         if request.method == "POST":
             request.max_content_length = ANNOTATION_IMAGE_LIMIT + 24 * 1024
             require_csrf()
@@ -512,6 +596,8 @@ def create_app(settings=None):
         db().execute("SELECT role FROM user_access LIMIT 1").fetchone()
         db().execute("SELECT digest FROM invitation_revocations LIMIT 1").fetchone()
         db().execute("SELECT id FROM annotations LIMIT 1").fetchone()
+        db().execute("SELECT id FROM annotation_replies LIMIT 1").fetchone()
+        db().execute("SELECT annotation_id FROM annotation_closures LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 

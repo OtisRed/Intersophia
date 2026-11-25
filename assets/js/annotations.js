@@ -105,6 +105,17 @@ async function start() {
         <p data-comment></p>
         <img data-saved-preview alt="Zapisany wycinek">
         <a data-location>Przejdź do widoku</a>
+        <section class="annotations-discussion" aria-labelledby="annotation-discussion-title">
+          <h3 id="annotation-discussion-title">Dyskusja</h3>
+          <p data-thread-status role="status"></p>
+          <ol data-replies></ol>
+          <form data-reply-form hidden>
+            <label for="annotation-reply">Twoja odpowiedź</label>
+            <textarea id="annotation-reply" rows="2" maxlength="3000" required></textarea>
+            <div class="annotations-actions"><button type="submit">Odpowiedz</button></div>
+          </form>
+          <button type="button" data-close-thread hidden>Zamknij dyskusję</button>
+        </section>
       </section>
       <form class="annotations-actions" method="dialog"><button type="submit">Zamknij</button></form>
     </dialog>`;
@@ -129,6 +140,13 @@ async function start() {
   const detail = library.querySelector('.annotations-detail');
   const missingAnchor = detail.querySelector('[data-anchor-missing]');
   const libraryStatus = library.querySelector('[data-library-status]');
+  const threadStatus = library.querySelector('[data-thread-status]');
+  const replies = library.querySelector('[data-replies]');
+  const replyForm = library.querySelector('[data-reply-form]');
+  const replyInput = replyForm.querySelector('textarea');
+  const replySubmit = replyForm.querySelector('button');
+  const closeThread = library.querySelector('[data-close-thread]');
+  const replyDateFormat = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
   const api = '/panel?widok=adnotacje';
   const scope = location.pathname === '/panel' ? `panel:${currentPanelView()}` : 'faq';
   let entries = [];
@@ -143,6 +161,9 @@ async function start() {
   let capturedElement;
   let selectedEntry;
   let captureAttempt = 0;
+  let threadAttempt = 0;
+  let threadWriting = false;
+  let replyDraft;
 
   function isActive() {
     return toggle.getAttribute('aria-pressed') === 'true';
@@ -196,6 +217,93 @@ async function start() {
       anchor.scrollIntoView({ block: 'center', inline: 'nearest' });
     }
     positionContext();
+    replyInput.value = '';
+    replyDraft = null;
+    void loadDiscussion(entry.id);
+  }
+
+  function threadUrl(id) {
+    return `${api}&watek=${id}`;
+  }
+
+  function renderDiscussion(thread) {
+    replies.replaceChildren(...thread.replies.map(reply => {
+      const row = document.createElement('li');
+      const author = document.createElement('strong');
+      const time = document.createElement('time');
+      const text = document.createElement('p');
+      const date = new Date(reply.created_at * 1000);
+      author.textContent = reply.author;
+      time.dateTime = date.toISOString();
+      time.textContent = replyDateFormat.format(date);
+      text.textContent = reply.comment;
+      row.append(author, time, text);
+      return row;
+    }));
+    threadStatus.textContent = thread.closed ? 'Dyskusja zamknięta.' : thread.has_replies ? '' : 'Brak odpowiedzi.';
+    replyForm.hidden = thread.closed;
+    closeThread.hidden = !thread.can_close;
+  }
+
+  async function loadDiscussion(id) {
+    const attempt = ++threadAttempt;
+    threadStatus.textContent = 'Wczytuję dyskusję…';
+    replies.replaceChildren();
+    replyForm.hidden = true;
+    closeThread.hidden = true;
+    try {
+      const response = await fetch(threadUrl(id), { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not load the discussion');
+      const thread = await response.json();
+      if (attempt === threadAttempt && selectedEntry?.id === id) renderDiscussion(thread);
+    } catch {
+      if (attempt === threadAttempt && selectedEntry?.id === id) {
+        threadStatus.textContent = 'Nie udało się wczytać dyskusji. Otwórz uwagę ponownie.';
+      }
+    }
+  }
+
+  async function updateDiscussion(action) {
+    if (threadWriting || !selectedEntry) return;
+    const { id } = selectedEntry;
+    const attempt = threadAttempt;
+    const form = new FormData();
+    form.set('csrf', session.csrf);
+    form.set('action', action);
+    if (action === 'reply') {
+      const text = replyInput.value.trim();
+      if (!text) {
+        threadStatus.textContent = 'Wpisz odpowiedź.';
+        replyInput.focus();
+        return;
+      }
+      if (replyDraft?.text !== text) replyDraft = { text, id: crypto.randomUUID() };
+      form.set('comment', text);
+      form.set('draft', replyDraft.id);
+    }
+    threadWriting = true;
+    replySubmit.disabled = closeThread.disabled = true;
+    try {
+      const response = await fetch(threadUrl(id), { method: 'POST', body: form });
+      if (attempt !== threadAttempt || selectedEntry?.id !== id) return;
+      if (response.status === 409) {
+        await loadDiscussion(id);
+        return;
+      }
+      if (!response.ok) throw new Error('Could not update the discussion');
+      const thread = await response.json();
+      if (attempt !== threadAttempt || selectedEntry?.id !== id) return;
+      replyInput.value = '';
+      replyDraft = null;
+      renderDiscussion(thread);
+    } catch {
+      if (attempt === threadAttempt && selectedEntry?.id === id) {
+        threadStatus.textContent = 'Nie udało się zapisać zmiany. Spróbuj ponownie.';
+      }
+    } finally {
+      threadWriting = false;
+      replySubmit.disabled = closeThread.disabled = false;
+    }
   }
 
   function openLibrary(entry) {
@@ -380,6 +488,11 @@ async function start() {
   retry.addEventListener('click', snapshot);
   listButton.addEventListener('click', () => openLibrary());
   filter.addEventListener('change', refreshEntries);
+  replyForm.addEventListener('submit', event => {
+    event.preventDefault();
+    void updateDiscussion('reply');
+  });
+  closeThread.addEventListener('click', () => updateDiscussion('close'));
   library.addEventListener('close', () => {
     selectedEntry = null;
     detail.hidden = true;
