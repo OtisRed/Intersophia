@@ -2,12 +2,13 @@
 {% block title %}{% if welcome %}Witaj w Intersophii{% else %}{{ "Dostęp" if access_view else "Zaproś" }} · Panel członka koła{% endif %}{% endblock %}
 {% block header_actions %}{% include "logout.html" %}{% endblock %}
 {% block main %}
+<script type="module" src="/assets/js/annotations.js"></script>
 {% if welcome %}{{ super() }}{% else %}
 <main class="membership-main member-layout">
   <aside class="member-sidebar">
-    <h1>Panel członka koła</h1>
+    <h1 data-annotation-target="member-panel">Panel członka koła</h1>
     <p class="member-role">{{ role_labels[user.role] }}</p>
-    <nav aria-label="Panel członka">
+    <nav aria-label="Panel członka" data-annotation-target="member-nav">
       <ul>
         <li><a href="{{ url_for('panel') }}"{% if not access_view %} aria-current="page"{% endif %}>Zaproś</a></li>
         {% if user.role == "guardian" %}
@@ -20,15 +21,16 @@
   {% include "member-access.html" %}
   {% else %}
   <section class="membership-card member-content" aria-labelledby="invite-title">
-    <h2 id="invite-title">Zaproś do Intersophii</h2>
+    <h2 id="invite-title" data-annotation-target="invite-title">Zaproś do Intersophii</h2>
     <form method="post" action="{{ url_for('panel') }}">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="hidden" name="action" value="invite">
-      <label for="invite-email">Adres Gmail</label>
+      <label for="invite-email" data-annotation-target="invite-email-label">Adres Gmail</label>
       <input id="invite-email" name="email" type="email" autocomplete="off" value="{{ invite_email }}"
              placeholder="nazwa@gmail.com" maxlength="78" required{% if error %} aria-describedby="invite-error"{% endif %}>
       {% if error %}<p class="membership-error" id="invite-error" role="alert">{{ error }}</p>{% endif %}
-      <button class="membership-action membership-send member-generate" type="submit">Utwórz link</button>
+      <button class="membership-action membership-send member-generate" type="submit"
+              data-annotation-target="invite-create">Utwórz link</button>
     </form>
     {% if invite_link %}
     <div class="member-invite-result">
@@ -47,8 +49,8 @@
 {% endif %}
 {% endblock %}
 {% block content %}
-<h1 id="title">Witaj w Intersophii</h1>
-<p class="membership-copy">Tu pojawią się zasady naszej społeczności.</p>
+<h1 id="title" data-annotation-target="welcome-title">Witaj w Intersophii</h1>
+<p class="membership-copy" data-annotation-target="community-rules">Tu pojawią się zasady naszej społeczności.</p>
 <form method="post" action="{{ url_for('panel') }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <input type="hidden" name="action" value="welcome">

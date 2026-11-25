@@ -308,6 +308,8 @@ def create_app(settings=None):
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
         user = logged_in()
+        if request.method == "GET" and request.args.get("widok") == "sesja-adnotacji":
+            return {"annotations": True} if user is not None else ({"annotations": False}, 401)
         if user is None:
             return redirect(url_for("login"), code=303)
         connection = db()

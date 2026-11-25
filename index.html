@@ -11,12 +11,13 @@
   <link rel="stylesheet" href="assets/css/styles.css">
   <script src="assets/js/content.js" defer></script>
   <script src="assets/js/main.js" defer></script>
+  <script type="module" src="assets/js/annotations.js"></script>
 </head>
 <body>
   <!-- ===== HEADER with full-width banner logo (SVG) ===== -->
   <header>
     <div class="bar">
-      <div class="logo-banner">
+      <div class="logo-banner" data-annotation-target="brand">
         <img src="assets/logo.svg" alt="Intersophia — logotyp" class="logo-img" loading="eager" decoding="async" />
       </div>
     </div>
@@ -27,7 +28,7 @@
     <!-- Desktop/tablet layout: content + left sidebar -->
     <div class="layout" id="desktopLayout" aria-label="Widok szeroki">
       <section class="main" id="content">
-        <nav class="socials socials-desktop card-surface" aria-label="Szybkie linki">
+        <nav class="socials socials-desktop card-surface" aria-label="Szybkie linki" data-annotation-target="resources">
           <a class="icon-btn" href="https://www.facebook.com/intersophia" target="_blank" rel="noopener" aria-label="Facebook">
             <img src="assets/Facebook.svg" alt="" aria-hidden="true" loading="lazy">
           </a>
@@ -59,7 +60,7 @@
 
     <!-- Mobile layout: accordion list -->
     <section class="mobile" aria-label="Widok mobilny">
-      <nav class="socials socials-mobile card-surface" aria-label="Szybkie linki">
+      <nav class="socials socials-mobile card-surface" aria-label="Szybkie linki" data-annotation-target="resources">
         <a class="icon-btn" href="https://www.facebook.com/intersophia" target="_blank" rel="noopener" aria-label="Facebook">
           <img src="assets/Facebook.svg" alt="" aria-hidden="true" loading="lazy">
         </a>

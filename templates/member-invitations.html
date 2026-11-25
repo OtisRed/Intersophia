@@ -1,6 +1,6 @@
 <section class="member-invitations" aria-labelledby="invitations-title">
-  <h3 id="invitations-title">{{ "Wszystkie zaproszenia" if show_invitation_issuers else "Moje zaproszenia" }}</h3>
-  <form method="get" action="{{ url_for('panel') }}" class="invite-filter">
+  <h3 id="invitations-title" data-annotation-target="invitation-list">{{ "Wszystkie zaproszenia" if show_invitation_issuers else "Moje zaproszenia" }}</h3>
+  <form method="get" action="{{ url_for('panel') }}" class="invite-filter" data-annotation-target="invitation-filter">
     <label for="invite-status">Status zaproszeń</label>
     <select id="invite-status" name="status">
       {% for status, label in invitation_labels.items() %}
