@@ -10,22 +10,30 @@ const targetSelector = [
 async function canAnnotate() {
   try {
     const response = await fetch(sessionUrl, { cache: 'no-store', headers: { Accept: 'application/json' } });
-    return response.ok && (await response.json()).annotations === true;
+    return response.ok ? await response.json() : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function currentPanelView() {
+  if (!document.querySelector('.member-layout')) return 'welcome';
+  return new URLSearchParams(location.search).get('widok') === 'dostep' ? 'access' : 'invites';
 }
 
 function contextFor(element) {
   const question = element.closest('[data-question-id]')?.dataset.questionId;
   const panel = location.pathname === '/panel';
-  const query = new URLSearchParams(location.search);
-  const view = panel
-    ? (document.querySelector('.member-layout') ? (query.get('widok') === 'dostep' ? 'access' : 'invites') : 'welcome')
-    : (question ?? location.hash.slice(1));
+  const view = panel ? currentPanelView() : (question ?? location.hash.slice(1));
   const target = element.dataset.annotationTarget
     ?? `faq:${question}:${element.matches('.acc-btn') ? 'question' : 'answer'}`;
   return { view: `${panel ? 'panel' : 'faq'}:${view || 'home'}`, target };
+}
+
+function visibleTargets() {
+  return [...document.querySelectorAll(targetSelector)]
+    .filter(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible'
+      && !element.closest('[inert], [aria-hidden="true"]'));
 }
 
 let rendererPromise;
@@ -51,7 +59,8 @@ function loadRenderer() {
 }
 
 async function start() {
-  if (!await canAnnotate()) return;
+  const session = await canAnnotate();
+  if (!session?.annotations || !session.csrf) return;
 
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
@@ -63,9 +72,12 @@ async function start() {
   ui.innerHTML = `
     <div class="annotations-toolbar" aria-label="Tryb adnotacji">
       <span class="annotations-hint" role="status" hidden>Wskaż element. Klawiaturą użyj strzałek i Enter.</span>
+      <span data-list-status role="status" hidden></span>
+      <button type="button" data-list hidden>Uwagi na stronie</button>
       <button type="button" data-add hidden>Dodaj adnotację</button>
       <button type="button" data-toggle aria-pressed="false">Adnotacje</button>
     </div>
+    <div class="annotations-markers" hidden></div>
     <div class="annotations-outline" aria-hidden="true" hidden></div>
     <dialog class="annotations-dialog" aria-labelledby="annotations-title">
       <form method="dialog">
@@ -76,25 +88,145 @@ async function start() {
         <textarea id="annotations-comment" rows="3" maxlength="3000"></textarea>
         <div class="annotations-actions">
           <button type="button" data-retry hidden>Ponów zrzut</button>
-          <button type="submit">Zamknij podgląd</button>
+          <button type="button" data-save disabled>Zapisz adnotację</button>
+          <button type="submit">Anuluj</button>
         </div>
       </form>
+    </dialog>
+    <dialog class="annotations-dialog" data-library aria-labelledby="annotation-library-title">
+      <h2 id="annotation-library-title">Uwagi na stronie</h2>
+      <label for="annotation-filter">Pokaż</label>
+      <select id="annotation-filter"><option value="wszystkie">Wszystkie</option><option value="moje">Moje</option></select>
+      <p data-library-status role="status"></p>
+      <ul class="annotations-list"></ul>
+      <section class="annotations-detail" hidden>
+        <p data-author></p>
+        <p data-comment></p>
+        <img data-saved-preview alt="Zapisany wycinek">
+        <a data-location>Przejdź do widoku</a>
+      </section>
+      <form class="annotations-actions" method="dialog"><button type="submit">Zamknij</button></form>
     </dialog>`;
   document.body.append(ui);
 
   const toggle = ui.querySelector('[data-toggle]');
   const add = ui.querySelector('[data-add]');
+  const listButton = ui.querySelector('[data-list]');
+  const markers = ui.querySelector('.annotations-markers');
+  const listStatus = ui.querySelector('[data-list-status]');
   const hint = ui.querySelector('.annotations-hint');
   const outline = ui.querySelector('.annotations-outline');
   const dialog = ui.querySelector('dialog');
   const preview = ui.querySelector('[data-preview]');
   const progress = ui.querySelector('[data-progress]');
   const retry = ui.querySelector('[data-retry]');
+  const save = ui.querySelector('[data-save]');
   const comment = ui.querySelector('textarea');
+  const library = ui.querySelector('[data-library]');
+  const filter = library.querySelector('select');
+  const list = library.querySelector('ul');
+  const detail = library.querySelector('.annotations-detail');
+  const libraryStatus = library.querySelector('[data-library-status]');
+  const api = '/panel?widok=adnotacje';
+  const scope = location.pathname === '/panel' ? `panel:${currentPanelView()}` : 'faq';
+  let entries = [];
+  let listAttempt = 0;
+  let layoutFrame;
+  let draft;
+  let imageBlob;
+  let previewUrl;
+  let saving = false;
   let picking = false;
   let focusedElement;
   let capturedElement;
   let captureAttempt = 0;
+
+  function isActive() {
+    return toggle.getAttribute('aria-pressed') === 'true';
+  }
+
+  function showEntry(entry) {
+    detail.hidden = false;
+    detail.querySelector('[data-author]').textContent = entry.author;
+    detail.querySelector('[data-comment]').textContent = entry.comment;
+    detail.querySelector('[data-saved-preview]').src = `${api}&obraz=${entry.id}`;
+    detail.querySelector('[data-location]').href = entry.path;
+  }
+
+  function openLibrary(entry) {
+    detail.hidden = true;
+    if (entry) showEntry(entry);
+    library.showModal();
+  }
+
+  function positionMarkers() {
+    if (layoutFrame) return;
+    layoutFrame = requestAnimationFrame(() => {
+      layoutFrame = null;
+      if (!isActive() || picking) return;
+      const positions = new Map(visibleTargets().map(node => {
+        const { view, target } = contextFor(node);
+        return [`${view}/${target}`, node.getBoundingClientRect()];
+      }));
+      for (const button of markers.children) {
+        const rect = positions.get(button.dataset.anchor);
+        button.hidden = !rect || rect.bottom <= 0 || rect.top >= innerHeight;
+        if (!button.hidden) {
+          button.style.left = `${Math.max(0, Math.min(innerWidth - 28, rect.right - 14))}px`;
+          button.style.top = `${Math.max(0, rect.top - 10)}px`;
+        }
+      }
+    });
+  }
+
+  function renderEntries() {
+    list.replaceChildren();
+    markers.replaceChildren();
+    const pinned = new Map();
+    entries.forEach((entry, index) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = `${index + 1}. ${entry.comment.length > 85 ? entry.comment.slice(0, 82) + '…' : entry.comment}`;
+      button.addEventListener('click', () => showEntry(entry));
+      item.append(button);
+      list.append(item);
+
+      const anchor = `${entry.view}/${entry.target}`;
+      if (pinned.has(anchor)) return;
+      pinned.set(anchor, entry);
+      const pin = document.createElement('button');
+      pin.type = 'button';
+      pin.hidden = true;
+      pin.dataset.anchor = anchor;
+      pin.textContent = String(index + 1);
+      pin.setAttribute('aria-label', `Otwórz adnotację ${index + 1}`);
+      pin.addEventListener('click', () => openLibrary(entry));
+      markers.append(pin);
+    });
+    libraryStatus.textContent = entries.length ? '' : 'Brak uwag w tym widoku.';
+    positionMarkers();
+  }
+
+  async function refreshEntries() {
+    const attempt = ++listAttempt;
+    libraryStatus.textContent = 'Wczytuję uwagi…';
+    detail.hidden = true;
+    const query = new URLSearchParams({ zakres: scope, filtr: filter.value });
+    try {
+      const response = await fetch(`${api}&${query}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not load annotations');
+      const result = await response.json();
+      if (attempt !== listAttempt) return;
+      entries = result.items;
+      renderEntries();
+    } catch {
+      if (attempt !== listAttempt) return;
+      entries = [];
+      renderEntries();
+      libraryStatus.textContent = 'Nie udało się wczytać uwag.';
+    }
+  }
 
   function highlight(element) {
     focusedElement = element;
@@ -112,28 +244,44 @@ async function start() {
     hint.hidden = true;
     add.removeAttribute('aria-pressed');
     highlight(null);
+    markers.hidden = !isActive();
+    positionMarkers();
+  }
+
+  function clearPreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
+    imageBlob = null;
+    preview.removeAttribute('src');
+    preview.hidden = true;
+    save.disabled = true;
   }
 
   async function snapshot() {
     const attempt = ++captureAttempt;
     const element = capturedElement;
-    preview.hidden = true;
-    preview.removeAttribute('src');
+    clearPreview();
     retry.hidden = true;
     progress.textContent = 'Tworzę wycinek…';
     try {
       const render = await loadRenderer();
       if (!element?.isConnected) throw new Error('The selected element changed');
+      const { width, height } = element.getBoundingClientRect();
       const canvas = await render(element, {
         backgroundColor: getComputedStyle(document.body).backgroundColor,
-        scale: 1,
+        scale: Math.min(1, 2047 / width, 2047 / height, Math.sqrt(1_950_000 / (width * height))),
         logging: false,
         ignoreElements: node => node.matches('.annotations-ui, input, textarea, [data-annotation-private]'),
       });
-      if (attempt !== captureAttempt) return;
       if (!canvas.width || !canvas.height) throw new Error('Empty snapshot');
-      preview.src = canvas.toDataURL('image/png');
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (attempt !== captureAttempt) return;
+      if (!blob || blob.size > 512 * 1024) throw new Error('Snapshot exceeds the upload limit');
+      imageBlob = blob;
+      previewUrl = URL.createObjectURL(blob);
+      preview.src = previewUrl;
       preview.hidden = false;
+      save.disabled = false;
       progress.textContent = '';
     } catch {
       if (attempt !== captureAttempt) return;
@@ -147,6 +295,7 @@ async function start() {
     const { view, target } = contextFor(element);
     dialog.dataset.annotationView = view;
     dialog.dataset.annotationTarget = target;
+    draft = crypto.randomUUID();
     stopPicking();
     comment.value = '';
     dialog.showModal();
@@ -155,10 +304,13 @@ async function start() {
   }
 
   toggle.addEventListener('click', () => {
-    const active = toggle.getAttribute('aria-pressed') === 'false';
+    const active = !isActive();
     toggle.setAttribute('aria-pressed', String(active));
     add.hidden = !active;
+    listButton.hidden = !active;
+    markers.hidden = !active;
     if (!active) stopPicking();
+    else void refreshEntries();
   });
   add.addEventListener('click', () => {
     if (picking) {
@@ -166,13 +318,53 @@ async function start() {
       return;
     }
     picking = true;
+    markers.hidden = true;
     hint.hidden = false;
     add.setAttribute('aria-pressed', 'true');
   });
   retry.addEventListener('click', snapshot);
+  listButton.addEventListener('click', () => openLibrary());
+  filter.addEventListener('change', refreshEntries);
+  library.addEventListener('close', () => {
+    detail.hidden = true;
+    detail.querySelector('[data-saved-preview]').removeAttribute('src');
+  });
+  save.addEventListener('click', async () => {
+    if (saving || !imageBlob) return;
+    if (!comment.value.trim()) {
+      progress.textContent = 'Wpisz komentarz.';
+      comment.focus();
+      return;
+    }
+    const form = new FormData();
+    form.set('csrf', session.csrf);
+    form.set('view', dialog.dataset.annotationView);
+    form.set('target', dialog.dataset.annotationTarget);
+    form.set('draft', draft);
+    form.set('comment', comment.value);
+    form.set('image', imageBlob, 'wycinek.png');
+    saving = true;
+    save.disabled = true;
+    progress.textContent = 'Zapisuję…';
+    try {
+      const response = await fetch(api, { method: 'POST', body: form });
+      if (!response.ok) throw new Error('Could not save annotation');
+      dialog.close();
+      listStatus.textContent = 'Adnotacja zapisana.';
+      listStatus.hidden = false;
+      await refreshEntries();
+    } catch {
+      progress.textContent = 'Nie udało się zapisać adnotacji. Spróbuj ponownie.';
+      save.disabled = false;
+    } finally {
+      saving = false;
+    }
+  });
+  dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
+  dialog.querySelector('form').addEventListener('submit', event => { if (saving) event.preventDefault(); });
   dialog.addEventListener('close', () => {
     captureAttempt++;
-    preview.removeAttribute('src');
+    clearPreview();
     capturedElement = null;
     add.focus();
   });
@@ -204,9 +396,7 @@ async function start() {
     }
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
     event.preventDefault();
-    const targets = [...document.querySelectorAll(targetSelector)]
-      .filter(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible'
-        && !element.closest('[inert], [aria-hidden="true"]'));
+    const targets = visibleTargets();
     if (!targets.length) return;
     const previous = targets.indexOf(focusedElement);
     const delta = ['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1;
@@ -215,9 +405,20 @@ async function start() {
     next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     highlight(next);
   }, true);
-  window.addEventListener('scroll', () => { if (picking) highlight(focusedElement); }, true);
-  window.addEventListener('resize', () => { if (picking) highlight(focusedElement); });
+  function updatePositions() {
+    if (picking) highlight(focusedElement);
+    else positionMarkers();
+  }
+  window.addEventListener('scroll', updatePositions, true);
+  window.addEventListener('resize', updatePositions);
   window.addEventListener('hashchange', stopPicking);
+  const main = document.querySelector('main');
+  if (main) {
+    new MutationObserver(updatePositions).observe(main, {
+      subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden', 'aria-expanded'],
+    });
+    new ResizeObserver(updatePositions).observe(main);
+  }
 }
 
 void start();
