@@ -292,6 +292,7 @@ async function start() {
 
   function stopPicking() {
     picking = false;
+    document.body.classList.remove('annotations-picking');
     hint.hidden = true;
     add.removeAttribute('aria-pressed');
     highlight(null);
@@ -358,6 +359,7 @@ async function start() {
   toggle.addEventListener('click', () => {
     const active = !isActive();
     toggle.setAttribute('aria-pressed', String(active));
+    document.body.classList.toggle('annotations-mode', active);
     add.hidden = !active;
     listButton.hidden = !active;
     markers.hidden = !active;
@@ -370,6 +372,7 @@ async function start() {
       return;
     }
     picking = true;
+    document.body.classList.add('annotations-picking');
     markers.hidden = true;
     hint.hidden = false;
     add.setAttribute('aria-pressed', 'true');
@@ -431,14 +434,52 @@ async function start() {
       highlight(event.target.closest(targetSelector));
     }
   });
-  window.addEventListener('click', event => {
-    if (!picking || !(event.target instanceof Element) || ui.contains(event.target)) return;
+
+  function isPageEvent(event) {
+    return isActive() && event.target instanceof Element && !ui.contains(event.target);
+  }
+
+  function blockPageAction(event) {
+    if (!isPageEvent(event)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+  }
+
+  for (const eventType of ['auxclick', 'dblclick', 'submit', 'beforeinput', 'contextmenu', 'dragstart']) {
+    window.addEventListener(eventType, blockPageAction, true);
+  }
+  window.addEventListener('focusin', event => {
+    if (!isPageEvent(event)) return;
+    event.stopImmediatePropagation();
+    toggle.focus({ preventScroll: true });
+  }, true);
+  // The FAQ listens for keyboard shortcuts on the document.
+  ui.addEventListener('keydown', event => {
+    if (isActive()) event.stopPropagation();
+  });
+  window.addEventListener('click', event => {
+    if (!isPageEvent(event)) return;
+    blockPageAction(event);
+    if (!picking) return;
     const element = event.target.closest(targetSelector);
     if (element) choose(element);
   }, true);
   window.addEventListener('keydown', event => {
+    if (!isActive()) return;
+    if (isPageEvent(event)) {
+      event.stopImmediatePropagation();
+      if (event.key === 'Enter' || event.key === ' ') event.preventDefault();
+    }
+    if (event.key === 'Tab' && !dialog.open && !library.open) {
+      const controls = [...ui.querySelectorAll('.annotations-toolbar button, .annotations-markers button')]
+        .filter(button => button.getClientRects().length);
+      const current = controls.indexOf(document.activeElement);
+      const delta = event.shiftKey ? -1 : 1;
+      const start = current < 0 ? (event.shiftKey ? 0 : -1) : current;
+      event.preventDefault();
+      controls[(start + delta + controls.length) % controls.length]?.focus({ preventScroll: true });
+      return;
+    }
     if (!picking) return;
     if (event.key === 'Escape') {
       event.preventDefault();
