@@ -101,6 +101,7 @@ async function start() {
       <ul class="annotations-list"></ul>
       <section class="annotations-detail" hidden>
         <p data-author></p>
+        <p data-anchor-missing hidden>Element nie jest widoczny w tym widoku. Poniżej jest zapisany wycinek.</p>
         <p data-comment></p>
         <img data-saved-preview alt="Zapisany wycinek">
         <a data-location>Przejdź do widoku</a>
@@ -126,6 +127,7 @@ async function start() {
   const filter = library.querySelector('select');
   const list = library.querySelector('ul');
   const detail = library.querySelector('.annotations-detail');
+  const missingAnchor = detail.querySelector('[data-anchor-missing]');
   const libraryStatus = library.querySelector('[data-library-status]');
   const api = '/panel?widok=adnotacje';
   const scope = location.pathname === '/panel' ? `panel:${currentPanelView()}` : 'faq';
@@ -139,24 +141,68 @@ async function start() {
   let picking = false;
   let focusedElement;
   let capturedElement;
+  let selectedEntry;
   let captureAttempt = 0;
 
   function isActive() {
     return toggle.getAttribute('aria-pressed') === 'true';
   }
 
+  function findAnchor(entry) {
+    return visibleTargets().find(node => {
+      const { view, target } = contextFor(node);
+      return view === entry.view && target === entry.target;
+    });
+  }
+
+  function dockDialog(modal, rect) {
+    const verticalSpace = { top: rect.top, bottom: innerHeight - rect.bottom };
+    const side = rect.left > innerWidth - rect.right ? 'left' : 'right';
+    const sideSpace = side === 'left' ? rect.left : innerWidth - rect.right;
+    if (sideSpace >= 330) {
+      modal.dataset.dock = side;
+      modal.style.setProperty('--dock-width', `${Math.min(420, sideSpace - 32)}px`);
+    } else {
+      const edge = verticalSpace.top > verticalSpace.bottom ? 'top' : 'bottom';
+      modal.dataset.dock = edge;
+      modal.style.setProperty('--dock-height', `${Math.max(168, Math.min(innerHeight - 32, verticalSpace[edge] - 32))}px`);
+    }
+  }
+
+  function positionContext() {
+    const modal = dialog.open ? dialog : library;
+    const element = dialog.open ? capturedElement : selectedEntry && findAnchor(selectedEntry);
+    const rect = element?.isConnected ? element.getBoundingClientRect() : null;
+    const visible = Boolean(modal.open && rect && rect.width && rect.height
+      && rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth);
+    modal.classList.toggle('annotations-context', visible);
+    outline.classList.toggle('annotations-outline-context', visible);
+    missingAnchor.hidden = !selectedEntry || visible;
+    drawOutline(visible ? rect : null);
+    if (visible) dockDialog(modal, rect);
+    else delete modal.dataset.dock;
+  }
+
   function showEntry(entry) {
+    selectedEntry = entry;
     detail.hidden = false;
     detail.querySelector('[data-author]').textContent = entry.author;
     detail.querySelector('[data-comment]').textContent = entry.comment;
     detail.querySelector('[data-saved-preview]').src = `${api}&obraz=${entry.id}`;
     detail.querySelector('[data-location]').href = entry.path;
+    const anchor = findAnchor(entry);
+    const rect = anchor?.getBoundingClientRect();
+    if (rect && (rect.bottom <= 0 || rect.top >= innerHeight)) {
+      anchor.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }
+    positionContext();
   }
 
   function openLibrary(entry) {
+    selectedEntry = null;
     detail.hidden = true;
-    if (entry) showEntry(entry);
     library.showModal();
+    if (entry) showEntry(entry);
   }
 
   function positionMarkers() {
@@ -212,6 +258,8 @@ async function start() {
     const attempt = ++listAttempt;
     libraryStatus.textContent = 'Wczytuję uwagi…';
     detail.hidden = true;
+    selectedEntry = null;
+    if (library.open) positionContext();
     const query = new URLSearchParams({ zakres: scope, filtr: filter.value });
     try {
       const response = await fetch(`${api}&${query}`, { cache: 'no-store' });
@@ -230,8 +278,11 @@ async function start() {
 
   function highlight(element) {
     focusedElement = element;
-    const rect = element?.getBoundingClientRect();
-    outline.hidden = !rect || !element.isConnected || rect.width === 0 || rect.height === 0;
+    drawOutline(element?.isConnected ? element.getBoundingClientRect() : null);
+  }
+
+  function drawOutline(rect) {
+    outline.hidden = !rect || rect.width === 0 || rect.height === 0;
     if (outline.hidden) return;
     Object.assign(outline.style, {
       left: `${rect.left}px`, top: `${rect.top}px`,
@@ -300,6 +351,7 @@ async function start() {
     comment.value = '';
     dialog.showModal();
     comment.focus();
+    positionContext();
     void snapshot();
   }
 
@@ -326,8 +378,10 @@ async function start() {
   listButton.addEventListener('click', () => openLibrary());
   filter.addEventListener('change', refreshEntries);
   library.addEventListener('close', () => {
+    selectedEntry = null;
     detail.hidden = true;
     detail.querySelector('[data-saved-preview]').removeAttribute('src');
+    positionContext();
   });
   save.addEventListener('click', async () => {
     if (saving || !imageBlob) return;
@@ -366,6 +420,9 @@ async function start() {
     captureAttempt++;
     clearPreview();
     capturedElement = null;
+    dialog.classList.remove('annotations-context');
+    delete dialog.dataset.dock;
+    positionContext();
     add.focus();
   });
 
@@ -406,12 +463,16 @@ async function start() {
     highlight(next);
   }, true);
   function updatePositions() {
-    if (picking) highlight(focusedElement);
+    if (dialog.open || library.open) positionContext();
+    else if (picking) highlight(focusedElement);
     else positionMarkers();
   }
   window.addEventListener('scroll', updatePositions, true);
   window.addEventListener('resize', updatePositions);
-  window.addEventListener('hashchange', stopPicking);
+  window.addEventListener('hashchange', () => {
+    if (picking) stopPicking();
+    updatePositions();
+  });
   const main = document.querySelector('main');
   if (main) {
     new MutationObserver(updatePositions).observe(main, {
