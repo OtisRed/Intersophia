@@ -256,7 +256,7 @@ async function start() {
           <section class="annotations-export" data-export hidden aria-label="Publikacja na GitHubie">
             <button type="button" data-export-open hidden>Zgłoś na GitHub</button>
             <button type="button" data-export-check hidden>Sprawdź wynik na GitHubie</button>
-            <a data-export-result hidden target="_blank" rel="noopener">Otwórz zgłoszenie na GitHubie</a>
+            <a data-export-result hidden target="_blank" rel="noopener"></a>
             <button type="button" data-export-cancel hidden>Wróć do dyskusji</button>
             <button type="button" data-export-confirm hidden disabled>Potwierdź i opublikuj</button>
             <p data-export-status role="status"></p>

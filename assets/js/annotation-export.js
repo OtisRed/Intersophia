@@ -45,7 +45,11 @@ export function annotationExport(library, csrf, api, reposition) {
     current.thread.publication = publication;
     const pending = ['sending', 'checking'].includes(publication.state);
     result.hidden = !publication.url;
-    if (publication.url) result.href = publication.url;
+    if (publication.url) {
+      const number = publication.url.match(/\/issues\/(\d+)$/)?.[1];
+      result.href = publication.url;
+      result.textContent = number ? `Otwórz zgłoszenie #${number}` : 'Otwórz zgłoszenie';
+    }
     open.hidden = !current.thread.can_publish || pending || Boolean(publication.url);
     check.hidden = !current.thread.can_publish || !pending;
     if (pending) status.textContent = 'Wynik wysyłki wymaga sprawdzenia.';
