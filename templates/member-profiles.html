@@ -35,6 +35,8 @@
   <form class="member-profile-form" method="post" action="{{ url_for('panel', widok='moj-profil') }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="member-profile-fields" data-annotation-private>
+      <label for="profile-name">Imię i nazwisko</label>
+      <input id="profile-name" name="name" autocomplete="name" value="{{ profile_values.name }}" maxlength="{{ profile_limits.name }}">
       <label for="profile-study">Kierunek studiów</label>
       <input id="profile-study" name="study" value="{{ profile_values.study }}" maxlength="{{ profile_limits.study }}">
       <label for="profile-interests">Zainteresowania</label>

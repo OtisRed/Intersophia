@@ -43,7 +43,8 @@ FAQ_PAGE_TARGETS = {"page-facebook", "page-messenger", "page-instagram", "page-o
 PANEL_HEADER_TARGETS = {"panel-home", "panel-logout"}
 TOPIC_TITLE_LIMIT = 120
 TOPIC_DESCRIPTION_LIMIT = 1200
-PROFILE_LIMITS = {"study": 120, "interests": 300, "bio": 1000}
+MEMBER_NAME_LIMIT = 120
+PROFILE_LIMITS = {"name": MEMBER_NAME_LIMIT, "study": 120, "interests": 300, "bio": 1000}
 MEMBER_PROFILE_VIEWS = {"czlonkowie", "profil", "moj-profil"}
 PANEL_MEMBER_TARGETS = {"member-panel", "member-nav", "member-nav-invites", "member-nav-topics",
                         "member-nav-access", "member-nav-members", "member-nav-profile"}
@@ -665,7 +666,7 @@ def create_app(settings=None):
                     return login_page("Aby dołączyć, otwórz otrzymany link z zaproszeniem.", 403)
                 if connection.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
                     return login_page("Ten adres jest już powiązany z innym kontem.", 403)
-                name = str(claims.get("name") or "").strip()[:120]
+                name = str(claims.get("name") or "").strip()[:MEMBER_NAME_LIMIT]
                 user_id = connection.execute(
                     "INSERT INTO users(google_sub,email,name) VALUES (?,?,?)", (subject, email, name)
                 ).lastrowid
@@ -964,6 +965,7 @@ def create_app(settings=None):
         if request.form.get("action") != "save-profile":
             abort(400)
         fields = {name: request.form.get(name, "").strip() for name in PROFILE_LIMITS}
+        fields["name"] = request.form.get("name", profile["name"]).strip()
         if any(len(fields[name]) > limit for name, limit in PROFILE_LIMITS.items()):
             values = {name: fields[name][:limit] for name, limit in PROFILE_LIMITS.items()}
             return profile_page(400, "Skróć pola profilu do podanych limitów.", values)
@@ -978,6 +980,8 @@ def create_app(settings=None):
             actor = logged_in()
             if actor is None:
                 return redirect(url_for("login"), code=303)
+            if "name" in request.form:
+                connection.execute("UPDATE users SET name=? WHERE id=?", (fields["name"], actor["id"]))
             replace_photo = bool(upload or request.form.get("remove_photo"))
             connection.execute(
                 "INSERT INTO member_profiles(user_id,study,interests,bio,photo) VALUES (?,?,?,?,?) "
