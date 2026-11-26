@@ -40,7 +40,7 @@
   box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
 }
 
-.annotations-ui button,
+.annotations-ui :is(button, [data-export-result]),
 .annotations-dialog textarea,
 .annotations-filter select,
 .annotations-export input[name="title"] {
@@ -52,8 +52,14 @@
   font: inherit;
 }
 
-.annotations-ui button, .annotations-filter select { min-height: 36px; cursor: pointer; }
-.annotations-ui button:hover { border-color: var(--annotation-accent); }
+.annotations-ui :is(button, [data-export-result]), .annotations-filter select { min-height: 36px; cursor: pointer; }
+.annotations-ui :is(button, [data-export-result]):hover { border-color: var(--annotation-accent); }
+.annotations-ui [data-export-result]:not([hidden]) {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
 .annotations-ui :is(.annotations-toolbar, .annotations-markers) button,
 .annotations-filter select { font: 12px/1.4 var(--annotation-mono); }
 .annotations-ui :is([data-save], [data-export-confirm]):enabled {
@@ -258,6 +264,5 @@
 .annotations-export label { overflow-wrap: anywhere; }
 .annotations-export input[type="checkbox"] { margin-inline-end: 8px; }
 .annotations-export [data-export-status]:empty { display: none; }
-.annotations-export a { color: var(--annotation-accent); }
 [data-library-status]:empty { display: none; }
 .annotations-dialog [data-library-status], .annotations-list { margin-top: 10px; }
