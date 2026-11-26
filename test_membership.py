@@ -391,7 +391,7 @@ class MembershipTests(unittest.TestCase):
         page = self.response(path).get_data(as_text=True)
         self.assertLess(page.index("<h3>Nowszy temat</h3>"), page.index("<h3>Pierwszy temat</h3>"))
         self.assertEqual(page.count("<h3>Pierwszy temat</h3>"), 1)
-        self.assertIn("Zgłasza Ania Nowak", page)
+        self.assertIn('Zgłasza <a href="/panel?widok=profil&amp;czlonek=1">Ania Nowak</a>', page)
 
         self.assertEqual(change(reader, "like-topic", topic_id=1, csrf="wrong").status_code, 400)
         self.assertEqual(change(reader, "like-topic", topic_id=99).status_code, 404)
