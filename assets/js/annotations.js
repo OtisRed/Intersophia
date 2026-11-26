@@ -21,7 +21,9 @@ async function canAnnotate() {
 
 function currentPanelView() {
   if (!document.querySelector('.member-layout')) return 'welcome';
-  return new URLSearchParams(location.search).get('widok') === 'dostep' ? 'access' : 'invites';
+  const view = new URLSearchParams(location.search).get('widok');
+  if (view === 'dostep') return 'access';
+  return view === 'tematy' ? 'topics' : 'invites';
 }
 
 function currentView() {

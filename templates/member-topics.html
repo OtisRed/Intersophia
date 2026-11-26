@@ -1,0 +1,44 @@
+<section class="membership-card member-content" aria-labelledby="topics-title">
+  <h2 id="topics-title" data-annotation-target="topics-title">Tematy spotkań</h2>
+  <form method="post" action="{{ url_for('panel', widok='tematy') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="draft" value="{{ topic_draft }}">
+    <label for="topic-title" data-annotation-target="topic-title-label">Tytuł tematu</label>
+    <input id="topic-title" name="title" value="{{ topic_title }}" maxlength="{{ topic_title_limit }}"
+           required data-annotation-private>
+    <label for="topic-description" data-annotation-target="topic-description-label">Krótki opis</label>
+    <textarea id="topic-description" name="description" rows="3" maxlength="{{ topic_description_limit }}"
+              required data-annotation-private>{{ topic_description }}</textarea>
+    {% if topic_error %}<p class="membership-error" role="alert">{{ topic_error }}</p>{% endif %}
+    <button class="membership-action membership-send member-generate" type="submit" name="action"
+            value="create-topic" data-annotation-target="topic-create">Zgłoś temat</button>
+  </form>
+  <section class="member-topics" aria-labelledby="topic-list">
+    <h3 id="topic-list" data-annotation-target="topic-list">Zgłoszone tematy</h3>
+    {% if topics %}
+    <ol data-annotation-private>
+      {% for topic in topics %}
+      <li>
+        <h4>{{ topic.title }}</h4>
+        <p class="topic-description">{{ topic.description }}</p>
+        <p class="topic-author">Zgłasza {{ topic.author }}</p>
+        <div class="topic-votes">
+          <span class="topic-vote-count">Polubienia: {{ topic.likes }}</span>
+          <form method="post" action="{{ url_for('panel', widok='tematy') }}">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="topic_id" value="{{ topic.id }}">
+            <button type="submit" name="action" value="{{ 'unlike-topic' if topic.liked else 'like-topic' }}"
+                    class="topic-vote{% if topic.liked %} is-liked{% endif %}"
+                    aria-label="{{ 'Cofnij polubienie' if topic.liked else 'Polub' }}: {{ topic.title }}">
+              {{ 'Cofnij polubienie' if topic.liked else 'Polub' }}
+            </button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p>Brak zgłoszonych tematów.</p>
+    {% endif %}
+  </section>
+</section>
