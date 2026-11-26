@@ -172,6 +172,12 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual([entry["id"] for entry in shared], [annotation_id])
         self.assertEqual(shared[0]["mine"], 0)
         self.assertEqual(self.response(api + "&zakres=panel:invites").get_json()["items"], [])
+        self.client = author
+        legacy_invite = save(view="panel:invites", target="invitation-list",
+                             draft="00000000-0000-4000-8000-000000000099").get_json()["id"]
+        self.client = reader
+        relocated = self.response(api + "&zakres=panel:members").get_json()["items"]
+        self.assertEqual([entry["id"] for entry in relocated], [legacy_invite])
         image_url = f"{api}&obraz={annotation_id}"
         fetched = self.response(image_url)
         self.assertEqual(fetched.mimetype, "image/png")
@@ -360,7 +366,7 @@ class MembershipTests(unittest.TestCase):
                          base_url=self.base)
 
     def issue_from_panel(self, email, csrf=None):
-        return self.client.post("/panel", data={"action": "invite", "email": email,
+        return self.client.post("/panel?widok=czlonkowie", data={"action": "invite", "email": email,
                                                  "csrf": csrf or self.csrf("/panel")},
                                 base_url=self.base)
 
@@ -642,7 +648,10 @@ class MembershipTests(unittest.TestCase):
     def test_member_can_issue_invite_matching_one_gmail(self):
         self.member_ready()
         page = self.response("/panel").get_data(as_text=True)
-        self.assertIn('aria-current="page">Zaproś', page)
+        self.assertIn('aria-current="page">Członkowie', page)
+        self.assertIn("Wysłane zaproszenia", page)
+        self.assertIn('<details class="member-invite-compose">', page)
+        self.assertLess(page.index('id="members-title"'), page.index('id="invitations-title"'))
         issued = self.issue_from_panel("New.User@gmail.com")
         self.assertEqual(issued.status_code, 200)
         link = html.unescape(re.search(r'id="invite-link" value="([^"]+)"',
@@ -703,7 +712,7 @@ class MembershipTests(unittest.TestCase):
             csrf = csrf or self.csrf("/panel")
         finally:
             self.client = previous
-        return client.post("/panel?widok=dostep", data={
+        return client.post("/panel?widok=czlonkowie", data={
             "action": action, "user_id": target, "csrf": csrf,
         }, base_url=self.base)
 
@@ -714,9 +723,11 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
         self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
         self.assertNotEqual(self.bootstrap("second@gmail.com").exit_code, 0)
-        page = guardian.get("/panel?widok=dostep", base_url=self.base)
+        page = guardian.get("/panel?widok=czlonkowie", base_url=self.base)
         self.assertEqual(page.status_code, 200)
-        self.assertIn("second@gmail.com", page.get_data(as_text=True))
+        self.assertIn('value="grant-board"', page.get_data(as_text=True))
+        self.assertEqual(guardian.get("/panel?widok=dostep", base_url=self.base).location,
+                         "/panel?widok=czlonkowie")
         self.assertEqual(self.response("/panel?widok=dostep").status_code, 403)
         self.assertEqual(self.change_access(member, "grant-board").status_code, 403)
         self.assertEqual(self.change_access(guardian, "grant-board", csrf="wrong").status_code, 400)
@@ -742,9 +753,9 @@ class MembershipTests(unittest.TestCase):
         member.set_cookie(old_cookie.key, old_cookie.value, domain="dev.intersophia.pl")
         self.assertEqual(self.response("/panel").location, "/logowanie")
         self.assertEqual(self.callback().status_code, 403)
-        page = guardian.get("/panel?widok=dostep", base_url=self.base)
+        page = guardian.get("/panel?widok=czlonkowie", base_url=self.base)
         self.assertNotIn("second@gmail.com", page.get_data(as_text=True))
-        archived = guardian.get("/panel?widok=dostep&czlonkowie=usunieci", base_url=self.base).get_data(as_text=True)
+        archived = guardian.get("/panel?widok=czlonkowie&czlonkowie=usunieci", base_url=self.base).get_data(as_text=True)
         self.assertIn("second@gmail.com", archived)
         self.assertIn("Dostęp odebrany", archived)
         self.assertNotIn('value="revoke-access"', archived)
@@ -785,7 +796,7 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(self.revoke_invite(owned).status_code, 303)
         self.assertEqual(self.revoke_invite(owned).status_code, 404)
         self.assertEqual(self.change_access(guardian, "grant-board").status_code, 303)
-        self.assertIn("Wszystkie zaproszenia", self.response("/panel").get_data(as_text=True))
+        self.assertIn("Wystawca:", self.response("/panel?widok=czlonkowie").get_data(as_text=True))
         self.assertEqual(self.revoke_invite(other).status_code, 303)
         self.assertEqual(self.change_access(guardian, "remove-board").status_code, 303)
         self.assertEqual(self.revoke_invite(technical).status_code, 404)

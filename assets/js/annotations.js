@@ -2,7 +2,7 @@ import { annotationExport } from './annotation-export.js';
 
 const sessionUrl = '/panel?widok=sesja-adnotacji';
 const panelViews = new Map([
-  ['dostep', 'access'], ['tematy', 'topics'], ['czlonkowie', 'members'],
+  ['tematy', 'topics'], ['czlonkowie', 'members'],
   ['profil', 'profile'], ['moj-profil', 'profile-edit'],
 ]);
 const targetSelector = [
@@ -26,7 +26,7 @@ async function canAnnotate() {
 function currentPanelView() {
   if (!document.querySelector('.member-layout')) return 'welcome';
   const view = new URLSearchParams(location.search).get('widok');
-  return panelViews.get(view) ?? 'invites';
+  return panelViews.get(view) ?? 'members';
 }
 
 function currentView() {
@@ -56,9 +56,9 @@ function anchorKey({ view, target }) {
 }
 
 function anchorKeys(entry) {
-  if (!entry.target.startsWith('region|')) return [anchorKey(entry)];
-  const parts = entry.target.slice(7).split('|');
-  return parts[0].startsWith('@') ? parts.slice(1) : parts;
+  const parts = entry.target.startsWith('region|') ? entry.target.slice(7).split('|') : [anchorKey(entry)];
+  const keys = parts[0].startsWith('@') ? parts.slice(1) : parts;
+  return keys.map(key => key.replace(/^panel:(invites|access)\//, 'panel:members/'));
 }
 
 function corners(start, end) {

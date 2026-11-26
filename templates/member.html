@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if welcome %}Witaj w Intersophii{% else %}{{ "Tematy" if topics_view else "Zarządzaj dostępem" if access_view else "Mój profil" if member_profile_view == "moj-profil" else "Członkowie" if member_profile_view else "Zaproś" }} · Panel członka koła{% endif %}{% endblock %}
+{% block title %}{% if welcome %}Witaj w Intersophii{% else %}{{ "Tematy" if topics_view else "Mój profil" if member_profile_view == "moj-profil" else "Członkowie" }} · Panel członka koła{% endif %}{% endblock %}
 {% block header_actions %}{% include "logout.html" %}{% endblock %}
 {% block main %}
 <script type="module" src="/assets/js/annotations.js"></script>
@@ -10,7 +10,6 @@
     <p class="member-role">{{ role_labels[user.role] }}</p>
     <nav aria-label="Panel członka" data-annotation-target="member-nav">
       <ul>
-        <li><a href="{{ url_for('panel') }}" data-annotation-target="member-nav-invites"{% if not access_view and not topics_view and not member_profile_view %} aria-current="page"{% endif %}>Zaproś</a></li>
         <li><a href="{{ url_for('panel', widok='tematy') }}" data-annotation-target="member-nav-topics"{% if topics_view %} aria-current="page"{% endif %}>Tematy</a></li>
         <li><a href="{{ url_for('panel', widok='czlonkowie') }}" data-annotation-target="member-nav-members"{% if member_profile_view == 'czlonkowie' %} aria-current="page"{% endif %}>Członkowie</a></li>
         <li><a href="{{ url_for('panel', widok='moj-profil') }}" data-annotation-target="member-nav-profile"{% if member_profile_view == 'moj-profil' %} aria-current="page"{% endif %}>Mój profil</a></li>
@@ -19,35 +18,8 @@
   </aside>
   {% if topics_view %}
   {% include "member-topics.html" %}
-  {% elif access_view %}
-  {% include "member-access.html" %}
-  {% elif member_profile_view %}
-  {% include "member-profiles.html" %}
   {% else %}
-  <section class="membership-card member-content" aria-labelledby="invite-title">
-    <h2 id="invite-title" data-annotation-target="invite-title">Zaproś do Intersophii</h2>
-    <form method="post" action="{{ url_for('panel') }}">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <input type="hidden" name="action" value="invite">
-      <label for="invite-email" data-annotation-target="invite-email-label">Adres Gmail</label>
-      <input id="invite-email" name="email" type="email" autocomplete="off" value="{{ invite_email }}"
-             placeholder="nazwa@gmail.com" maxlength="78" required{% if error %} aria-describedby="invite-error"{% endif %}>
-      {% if error %}<p class="membership-error" id="invite-error" role="alert">{{ error }}</p>{% endif %}
-      <button class="membership-action membership-send member-generate" type="submit"
-              data-annotation-target="invite-create">Utwórz link</button>
-    </form>
-    {% if invite_link %}
-    <div class="member-invite-result" data-annotation-private>
-      <label for="invite-link">Jednorazowy link</label>
-      <input type="url" id="invite-link" value="{{ invite_link }}" readonly>
-      <p class="membership-copy">Wyślij go ręcznie na podany adres. Link jest ważny przez 48 godzin.</p>
-      <button class="membership-action membership-google" id="copy-invite" type="button">Skopiuj link</button>
-      <p id="copy-result" role="status"></p>
-    </div>
-    <script src="/assets/js/member-invites.js" defer></script>
-    {% endif %}
-    {% include "member-invitations.html" %}
-  </section>
+  {% include "member-profiles.html" %}
   {% endif %}
 </main>
 {% endif %}

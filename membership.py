@@ -45,7 +45,6 @@ TOPIC_TITLE_LIMIT = 120
 TOPIC_DESCRIPTION_LIMIT = 1200
 MEMBER_NAME_LIMIT = 120
 PROFILE_LIMITS = {"name": MEMBER_NAME_LIMIT, "study": 120, "interests": 300, "bio": 1000}
-MEMBER_PROFILE_VIEWS = {"czlonkowie", "profil", "moj-profil"}
 PANEL_MEMBER_TARGETS = {"member-panel", "member-nav", "member-nav-invites", "member-nav-topics",
                         "member-nav-access", "member-nav-members", "member-nav-profile"}
 PANEL_ANNOTATION_TARGETS = {
@@ -57,7 +56,9 @@ PANEL_ANNOTATION_TARGETS = {
                      "member-nav-invites", "member-nav-access", "member-filter-active", "member-filter-removed"},
     "panel:topics": {"member-panel", "member-nav", "member-nav-invites", "member-nav-access",
                      "topics-title", "topic-title-label", "topic-description-label", "topic-create", "topic-list"},
-    "panel:members": {"members-title"},
+    "panel:members": {"members-title", "invite-title", "invite-email-label", "invite-create",
+                      "invitation-list", "invitation-filter", "invite-status-label", "invite-filter-submit",
+                      "member-filter", "member-filter-active", "member-filter-removed"},
     "panel:profile": {"member-profile-back"},
     "panel:profile-edit": {"my-profile-title", "profile-save"},
 }
@@ -591,10 +592,14 @@ def create_app(settings=None):
             "SELECT a.id,a.view,a.target,a.path,a.comment,a.created_at,"
             "COALESCE(NULLIF(u.name,''),'Członek SKN') AS author,"
             "a.author_id=? AS mine FROM annotations a JOIN users u ON u.id=a.author_id "
-            "WHERE (a.view=? OR (?='faq' AND a.view LIKE 'faq:%')) AND (NOT ? OR a.author_id=?) "
+            "WHERE (a.view IN (?, ?, ?) OR (?='faq' AND a.view LIKE 'faq:%')) "
+            "AND (NOT ? OR a.author_id=?) "
             "AND NOT EXISTS (SELECT 1 FROM annotation_closures c WHERE c.annotation_id=a.id) "
             "ORDER BY a.id DESC",
-            (user["id"], scope, scope, request.args.get("filtr") == "moje", user["id"]),
+            (user["id"], scope,
+             "panel:invites" if scope == "panel:members" else None,
+             "panel:access" if scope == "panel:members" and user["role"] == "guardian" else None,
+             scope, request.args.get("filtr") == "moje", user["id"]),
         )
         return {"items": [dict(row) for row in entries]}
 
@@ -723,7 +728,8 @@ def create_app(settings=None):
             ).rowcount
             if not changed:
                 abort(404, "Nie ma aktywnego zaproszenia, które możesz cofnąć.")
-        return redirect(url_for("panel", status=status) if status != "active" else url_for("panel"), code=303)
+        return redirect(url_for("panel", widok="czlonkowie", status=status if status != "active" else None,
+                                _anchor="invitations-title"), code=303)
 
     def manage_access(connection, action):
         target_id = request.form.get("user_id", type=int)
@@ -746,7 +752,7 @@ def create_app(settings=None):
                 "ON CONFLICT(user_id) DO UPDATE SET role=excluded.role, revoked_at=excluded.revoked_at",
                 (target_id, role, revoked_at),
             )
-        return redirect(url_for("panel", widok="dostep"), code=303)
+        return redirect(url_for("panel", widok="czlonkowie", _anchor="members-title"), code=303)
 
     def topics_panel(connection, user):
         topics_url = url_for("panel", widok="tematy")
@@ -913,17 +919,6 @@ def create_app(settings=None):
             return render_template("member.html", member_profile_view=panel_view, user=user, role_labels=ROLE_LABELS,
                                    csrf=csrf_token(), **details), status
 
-        if panel_view == "czlonkowie":
-            if not reading:
-                abort(405)
-            members = connection.execute(
-                "SELECT u.id, u.name, COALESCE(a.role, 'member') AS role, "
-                "p.study, p.photo IS NOT NULL AS has_photo FROM users u "
-                "LEFT JOIN user_access a ON a.user_id=u.id LEFT JOIN member_profiles p ON p.user_id=u.id "
-                "WHERE a.revoked_at IS NULL ORDER BY NULLIF(TRIM(u.name),'') IS NULL, u.name COLLATE NOCASE, u.id"
-            ).fetchall()
-            return render(members=members)
-
         editing = panel_view == "moj-profil"
         if editing and "czlonek" in request.args:
             abort(400)
@@ -1007,14 +1002,14 @@ def create_app(settings=None):
         access_view = panel_view == "dostep"
         if access_view and user["role"] != "guardian":
             abort(403)
-        removed_view = request.args.get("czlonkowie") == "usunieci"
+        removed_view = user["role"] == "guardian" and request.args.get("czlonkowie") == "usunieci"
         invitation_status = request.args.get("status", "active")
         if invitation_status not in INVITATION_LABELS and invitation_status != "all":
             invitation_status = "active"
         acknowledged = connection.execute(
             "SELECT 1 FROM welcome_acknowledgements WHERE user_id=?", (user["id"],)
         ).fetchone()
-        if panel_view == "tematy" or panel_view in MEMBER_PROFILE_VIEWS:
+        if panel_view == "tematy" or panel_view in {"profil", "moj-profil"}:
             if not acknowledged:
                 return redirect(url_for("panel"), code=303)
             if panel_view == "tematy":
@@ -1022,26 +1017,31 @@ def create_app(settings=None):
             return member_profiles_panel(connection, user, panel_view)
 
         def view(error=None, link=None, email="", status=200):
-            accounts = ()
-            invites = ()
-            if access_view and acknowledged:
-                accounts = connection.execute(
-                    "SELECT u.id, u.name, u.email, COALESCE(a.role, 'member') AS role, a.revoked_at "
+            members = invitations = ()
+            if acknowledged:
+                members = connection.execute(
+                    "SELECT u.id, u.name, COALESCE(a.role, 'member') AS role, "
+                    "p.study, p.photo IS NOT NULL AS has_photo, "
+                    "CASE WHEN a.revoked_at IS NOT NULL THEN u.email END AS removed_email "
                     "FROM users u LEFT JOIN user_access a ON a.user_id=u.id "
-                    "WHERE (a.revoked_at IS NOT NULL)=? ORDER BY u.email",
+                    "LEFT JOIN member_profiles p ON p.user_id=u.id "
+                    "WHERE (a.revoked_at IS NOT NULL)=? "
+                    "ORDER BY NULLIF(TRIM(u.name),'') IS NULL, u.name COLLATE NOCASE, u.id",
                     (removed_view,),
                 ).fetchall()
-            elif acknowledged:
-                invites = list_invitations(connection, user, invitation_status)
+                invitations = list_invitations(connection, user, invitation_status)
             return render_template("member.html", welcome=not acknowledged, csrf=csrf_token(),
                                    error=error, invite_link=link, invite_email=email,
-                                   user=user, role_labels=ROLE_LABELS, access_view=access_view,
-                                   accounts=accounts, removed_view=removed_view,
-                                   invitations=invites, invitation_labels=INVITATION_LABELS,
+                                   user=user, role_labels=ROLE_LABELS, member_profile_view="czlonkowie",
+                                   members=members, removed_view=removed_view,
+                                   invitations=invitations, invitation_labels=INVITATION_LABELS,
                                    invitation_status=invitation_status,
                                    show_invitation_issuers=user["role"] in INVITATION_MANAGERS), status
 
-        if request.method == "GET":
+        if request.method in {"GET", "HEAD"}:
+            if access_view and acknowledged:
+                return redirect(url_for("panel", widok="czlonkowie",
+                                        czlonkowie="usunieci" if removed_view else None), code=303)
             return view()
 
         require_csrf()

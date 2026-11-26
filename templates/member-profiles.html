@@ -7,27 +7,48 @@
   {% endif %}
 {% endmacro %}
 {% if member_profile_view == 'czlonkowie' %}
-<section class="membership-card member-content" aria-labelledby="members-title">
-  <div class="member-directory-header">
-    <h2 id="members-title" data-annotation-target="members-title">Członkowie koła</h2>
-    {% if user.role == 'guardian' %}
-    <a class="member-directory-action" href="{{ url_for('panel', widok='dostep') }}" data-annotation-target="member-nav-access">Zarządzaj dostępem</a>
-    {% endif %}
-  </div>
-  <ul class="member-directory" data-annotation-private>
-    {% for member in members %}
-    <li>
-      <a href="{{ url_for('panel', widok='profil', czlonek=member.id) }}">
-        {{ avatar(member) }}
-        <span>
-          <strong>{{ member.name or 'Członek SKN' }}</strong>
-          <span class="member-directory-meta">{{ role_labels[member.role] }}{% if member.study %} · {{ member.study }}{% endif %}</span>
-        </span>
-      </a>
-    </li>
-    {% endfor %}
-  </ul>
-</section>
+<div class="member-directory-layout">
+  <section class="membership-card member-content" aria-labelledby="members-title">
+    <div class="member-directory-header">
+      <h2 id="members-title" data-annotation-target="members-title">Członkowie koła</h2>
+      {% if user.role == 'guardian' %}
+      <nav class="member-account-filter" aria-label="Lista członków" data-annotation-target="member-filter">
+        <a href="{{ url_for('panel', widok='czlonkowie') }}" data-annotation-target="member-filter-active"{% if not removed_view %} aria-current="page"{% endif %}>Aktywni</a>
+        <a href="{{ url_for('panel', widok='czlonkowie', czlonkowie='usunieci') }}" data-annotation-target="member-filter-removed"{% if removed_view %} aria-current="page"{% endif %}>Usunięci</a>
+      </nav>
+      {% endif %}
+    </div>
+    <ul class="member-directory" data-annotation-private>
+      {% for member in members %}
+      <li>
+        {% if removed_view %}
+        <div class="member-directory-person">
+          <span>
+            <strong>{{ member.name or member.removed_email }}</strong>
+            {% if member.name %}<span class="member-directory-meta">{{ member.removed_email }}</span>{% endif %}
+            <span class="member-directory-meta">{{ role_labels[member.role] }} · Dostęp odebrany</span>
+          </span>
+        </div>
+        {% else %}
+        <a class="member-directory-person" href="{{ url_for('panel', widok='profil', czlonek=member.id) }}">
+          {{ avatar(member) }}
+          <span>
+            <strong>{{ member.name or 'Członek SKN' }}</strong>
+            <span class="member-directory-meta">{{ role_labels[member.role] }}{% if member.study %} · {{ member.study }}{% endif %}</span>
+          </span>
+        </a>
+        {% if user.role == 'guardian' and member.role != 'guardian' %}
+        {% include "member-access.html" %}
+        {% endif %}
+        {% endif %}
+      </li>
+      {% else %}
+      <li class="member-directory-person">Brak {{ "usuniętych" if removed_view else "aktywnych" }} członków.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% include "member-invitations.html" %}
+</div>
 {% elif member_profile_view == 'moj-profil' %}
 <section class="membership-card member-content" aria-labelledby="my-profile-title">
   <h2 id="my-profile-title" data-annotation-target="my-profile-title">Mój profil</h2>
