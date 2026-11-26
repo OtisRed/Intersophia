@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if welcome %}Witaj w Intersophii{% else %}{{ "Tematy" if topics_view else "Dostęp" if access_view else "Zaproś" }} · Panel członka koła{% endif %}{% endblock %}
+{% block title %}{% if welcome %}Witaj w Intersophii{% else %}{{ "Tematy" if topics_view else "Zarządzaj dostępem" if access_view else "Mój profil" if member_profile_view == "moj-profil" else "Członkowie" if member_profile_view else "Zaproś" }} · Panel członka koła{% endif %}{% endblock %}
 {% block header_actions %}{% include "logout.html" %}{% endblock %}
 {% block main %}
 <script type="module" src="/assets/js/annotations.js"></script>
@@ -10,11 +10,10 @@
     <p class="member-role">{{ role_labels[user.role] }}</p>
     <nav aria-label="Panel członka" data-annotation-target="member-nav">
       <ul>
-        <li><a href="{{ url_for('panel') }}" data-annotation-target="member-nav-invites"{% if not access_view and not topics_view %} aria-current="page"{% endif %}>Zaproś</a></li>
+        <li><a href="{{ url_for('panel') }}" data-annotation-target="member-nav-invites"{% if not access_view and not topics_view and not member_profile_view %} aria-current="page"{% endif %}>Zaproś</a></li>
         <li><a href="{{ url_for('panel', widok='tematy') }}" data-annotation-target="member-nav-topics"{% if topics_view %} aria-current="page"{% endif %}>Tematy</a></li>
-        {% if user.role == "guardian" %}
-        <li><a href="{{ url_for('panel', widok='dostep') }}" data-annotation-target="member-nav-access"{% if access_view %} aria-current="page"{% endif %}>Dostęp</a></li>
-        {% endif %}
+        <li><a href="{{ url_for('panel', widok='czlonkowie') }}" data-annotation-target="member-nav-members"{% if member_profile_view == 'czlonkowie' %} aria-current="page"{% endif %}>Członkowie</a></li>
+        <li><a href="{{ url_for('panel', widok='moj-profil') }}" data-annotation-target="member-nav-profile"{% if member_profile_view == 'moj-profil' %} aria-current="page"{% endif %}>Mój profil</a></li>
       </ul>
     </nav>
   </aside>
@@ -22,6 +21,8 @@
   {% include "member-topics.html" %}
   {% elif access_view %}
   {% include "member-access.html" %}
+  {% elif member_profile_view %}
+  {% include "member-profiles.html" %}
   {% else %}
   <section class="membership-card member-content" aria-labelledby="invite-title">
     <h2 id="invite-title" data-annotation-target="invite-title">Zaproś do Intersophii</h2>

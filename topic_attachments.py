@@ -50,22 +50,27 @@ def reading_file(upload):
     return None, name + suffix, media_type, data
 
 
-def announcement_photo(upload):
+def normalized_photo(upload, max_edge):
     data = uploaded_bytes(upload, "Zdjęcie")
     try:
         with Image.open(BytesIO(data), formats=["JPEG", "PNG", "WEBP"]) as image:
             if image.width * image.height > 25_000_000 or getattr(image, "is_animated", False):
                 raise ValueError("Wybierz zdjęcie do 25 megapikseli, bez animacji.")
             photo = ImageOps.exif_transpose(image).convert("RGBA")
-        photo.thumbnail((2048, 2048))
+        photo.thumbnail((max_edge, max_edge))
         rgb = Image.new("RGB", photo.size, "white")
         rgb.paste(photo, mask=photo.getchannel("A"))
         output = BytesIO()
         rgb.save(output, format="JPEG", quality=90)
     except (OSError, SyntaxError, Image.DecompressionBombError):
         raise ValueError("Wybierz poprawny obraz JPEG, PNG lub WebP.") from None
+    return output.getvalue()
+
+
+def announcement_photo(upload):
+    content = normalized_photo(upload, 2048)
     name = secure_filename(PurePath(upload.filename).stem)[:100] or "zdjecie"
-    return None, name + ".jpg", "image/jpeg", output.getvalue()
+    return None, name + ".jpg", "image/jpeg", content
 
 
 def parse_topic_attachments(form, files):

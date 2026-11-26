@@ -1,0 +1,79 @@
+{% macro avatar(person) %}
+  {% if person.has_photo %}
+  <img class="member-avatar" src="{{ url_for('panel', widok='profil', czlonek=person.id, zdjecie='1') }}"
+       width="56" height="56" alt="" loading="lazy">
+  {% else %}
+  <span class="member-avatar member-avatar-initial" aria-hidden="true">{{ (person.name[:1] or 'C') | upper }}</span>
+  {% endif %}
+{% endmacro %}
+{% if member_profile_view == 'czlonkowie' %}
+<section class="membership-card member-content" aria-labelledby="members-title">
+  <div class="member-directory-header">
+    <h2 id="members-title" data-annotation-target="members-title">Członkowie koła</h2>
+    {% if user.role == 'guardian' %}
+    <a class="member-directory-action" href="{{ url_for('panel', widok='dostep') }}" data-annotation-target="member-nav-access">Zarządzaj dostępem</a>
+    {% endif %}
+  </div>
+  <ul class="member-directory" data-annotation-private>
+    {% for member in members %}
+    <li>
+      <a href="{{ url_for('panel', widok='profil', czlonek=member.id) }}">
+        {{ avatar(member) }}
+        <span>
+          <strong>{{ member.name or 'Członek SKN' }}</strong>
+          <span class="member-directory-meta">{{ role_labels[member.role] }}{% if member.study %} · {{ member.study }}{% endif %}</span>
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% elif member_profile_view == 'moj-profil' %}
+<section class="membership-card member-content" aria-labelledby="my-profile-title">
+  <h2 id="my-profile-title" data-annotation-target="my-profile-title">Mój profil</h2>
+  <p class="member-profile-identity" data-annotation-private>{{ profile.name or 'Członek SKN' }} · {{ profile_email }}</p>
+  <form class="member-profile-form" method="post" action="{{ url_for('panel', widok='moj-profil') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="member-profile-fields" data-annotation-private>
+      <label for="profile-study">Kierunek studiów</label>
+      <input id="profile-study" name="study" value="{{ profile_values.study }}" maxlength="{{ profile_limits.study }}">
+      <label for="profile-interests">Zainteresowania</label>
+      <textarea id="profile-interests" name="interests" rows="2" maxlength="{{ profile_limits.interests }}">{{ profile_values.interests }}</textarea>
+      <label for="profile-bio">Krótki opis</label>
+      <textarea id="profile-bio" name="bio" rows="4" maxlength="{{ profile_limits.bio }}">{{ profile_values.bio }}</textarea>
+      <label for="profile-photo">Zdjęcie profilowe</label>
+      {% if profile.has_photo %}{{ avatar(profile) }}{% endif %}
+      <input id="profile-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="profile-photo-formats">
+      <p id="profile-photo-formats">JPEG, PNG lub WebP, do {{ profile_file_limit }} MB i 25 megapikseli.</p>
+      {% if profile.has_photo %}
+      <label><input type="checkbox" name="remove_photo" value="1"> Usuń obecne zdjęcie</label>
+      {% endif %}
+    </div>
+    {% if profile_error %}<p class="membership-error" role="alert">{{ profile_error }}</p>{% endif %}
+    <button class="membership-action membership-send member-generate" type="submit" name="action" value="save-profile"
+            data-annotation-target="profile-save">Zapisz profil</button>
+  </form>
+</section>
+{% else %}
+<section class="membership-card member-content" aria-labelledby="member-profile-title">
+  <a class="member-directory-action" href="{{ url_for('panel', widok='czlonkowie') }}" data-annotation-target="member-profile-back">Wróć do członków</a>
+  <div class="member-profile-summary" data-annotation-private>
+    {{ avatar(profile) }}
+    <div>
+      <h2 id="member-profile-title">{{ profile.name or 'Członek SKN' }}</h2>
+      <p class="member-directory-meta">{{ role_labels[profile.role] }}</p>
+      {% if profile_email %}<p class="member-directory-meta">{{ profile_email }}</p>{% endif %}
+    </div>
+  </div>
+  {% if profile.study or profile.interests or profile.bio %}
+  <dl class="member-profile-details" data-annotation-private>
+    {% if profile.study %}<dt>Kierunek studiów</dt><dd>{{ profile.study }}</dd>{% endif %}
+    {% if profile.interests %}<dt>Zainteresowania</dt><dd>{{ profile.interests }}</dd>{% endif %}
+    {% if profile.bio %}<dt>Krótki opis</dt><dd>{{ profile.bio }}</dd>{% endif %}
+  </dl>
+  {% endif %}
+  {% if profile.id == user.id %}
+  <a class="member-directory-action" href="{{ url_for('panel', widok='moj-profil') }}">Edytuj mój profil</a>
+  {% endif %}
+</section>
+{% endif %}

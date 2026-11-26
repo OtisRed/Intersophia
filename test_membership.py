@@ -391,7 +391,7 @@ class MembershipTests(unittest.TestCase):
         page = self.response(path).get_data(as_text=True)
         self.assertLess(page.index("<h3>Nowszy temat</h3>"), page.index("<h3>Pierwszy temat</h3>"))
         self.assertEqual(page.count("<h3>Pierwszy temat</h3>"), 1)
-        self.assertIn("Zgłasza Ania Nowak", page)
+        self.assertIn('Zgłasza <a href="/panel?widok=profil&amp;czlonek=1">Ania Nowak</a>', page)
 
         self.assertEqual(change(reader, "like-topic", topic_id=1, csrf="wrong").status_code, 400)
         self.assertEqual(change(reader, "like-topic", topic_id=99).status_code, 404)
@@ -567,6 +567,72 @@ class MembershipTests(unittest.TestCase):
                 "SELECT topic_id,published_by FROM meeting_topic_publications ORDER BY topic_id"
             ).fetchall()
             self.assertEqual(publications, [(1, 1), (2, 2)])
+
+    def test_private_profiles_directory_admin_and_topic_links(self):
+        directory = "/panel?widok=czlonkowie"
+        edit = "/panel?widok=moj-profil"
+        person = "/panel?widok=profil&czlonek=2"
+        photo_url = person + "&zdjecie=1"
+        topics = "/panel?widok=tematy"
+        guest = self.app.test_client()
+        for path in (directory, edit, person, photo_url):
+            self.assertEqual(guest.get(path, base_url=self.base).location, "/logowanie")
+        guardian, author = self.access_accounts()
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute("UPDATE users SET name='Druga osoba' WHERE id=2")
+
+        def page(client, path):
+            return client.get(path, base_url=self.base).get_data(as_text=True)
+
+        def post(client, path, **values):
+            self.client = client
+            return client.post(path, base_url=self.base, data={"csrf": self.csrf(edit)} | values)
+
+        self.assertIn("Druga osoba", page(guardian, directory))
+        self.assertIn("Ania Nowak", page(author, directory))
+        self.assertNotIn("tester@gmail.com", page(author, directory))
+        self.assertNotIn("second@gmail.com", page(guardian, directory))
+        self.assertNotIn("Zarządzaj dostępem", page(author, directory))
+        self.assertEqual(author.get("/panel?widok=dostep", base_url=self.base).status_code, 403)
+        self.assertEqual(post(author, edit, action="save-profile", bio="x" * 1001).status_code, 400)
+        self.assertEqual(post(guardian, person, action="save-profile", bio="Cudza edycja").status_code, 405)
+        self.assertEqual(post(guardian, edit + "&czlonek=2", action="save-profile", bio="Cudza edycja").status_code, 400)
+        self.assertEqual(post(author, edit, action="save-profile", csrf="wrong").status_code, 400)
+
+        photo = io.BytesIO()
+        Image.new("RGB", (800, 400), "green").save(photo, "PNG")
+        photo.seek(0)
+        self.assertEqual(post(author, edit, action="save-profile", study="Ekonomia",
+                              interests="Filozofia", bio="Opis profilu", photo=(photo, "profil.png")).location, person)
+        self.assertIn("Ekonomia", page(guardian, directory))
+        self.assertIn("Opis profilu", page(guardian, person))
+        self.assertNotIn("second@gmail.com", page(guardian, person))
+        self.assertIn("second@gmail.com", page(author, person))
+        image = guardian.get(photo_url, base_url=self.base)
+        self.assertEqual(image.mimetype, "image/jpeg")
+        self.assertEqual(image.headers["Cache-Control"], "no-store")
+        with Image.open(io.BytesIO(image.data)) as profile_photo:
+            self.assertEqual(profile_photo.size, (640, 320))
+        self.assertEqual(post(author, edit, action="save-profile", study="Ekonomia", bio="Nowy opis").status_code, 303)
+        self.assertEqual(author.get(photo_url, base_url=self.base).status_code, 200)
+
+        draft = re.search(r'name="draft" value="([^"]+)"', page(author, topics))[1]
+        self.assertEqual(post(author, topics, action="create-topic", draft=draft, title="Temat z profilem",
+                              description="Opis").status_code, 303)
+        self.assertIn('widok=profil&amp;czlonek=2">Druga osoba</a>', page(guardian, topics))
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertIn("Zarządzaj dostępem", page(guardian, directory))
+        self.assertIn("second@gmail.com", page(guardian, person))
+        self.assertEqual(self.change_access(guardian, "grant-board", target=2).status_code, 303)
+        self.assertNotIn("Zarządzaj dostępem", page(author, directory))
+        self.assertEqual(author.get("/panel?widok=dostep", base_url=self.base).status_code, 403)
+        self.assertEqual(self.change_access(guardian, "revoke-access", target=2).status_code, 303)
+        self.assertNotIn("Druga osoba", page(guardian, directory))
+        self.assertEqual(guardian.get(person, base_url=self.base).status_code, 404)
+        self.assertEqual(guardian.get(photo_url, base_url=self.base).status_code, 404)
+        self.assertEqual(author.get(edit, base_url=self.base).location, "/logowanie")
+        self.assertIn("Zgłasza Druga osoba", page(guardian, topics))
+        self.assertNotIn('widok=profil&amp;czlonek=2">Druga osoba</a>', page(guardian, topics))
 
     def test_member_can_issue_invite_matching_one_gmail(self):
         self.member_ready()

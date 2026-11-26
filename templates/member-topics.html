@@ -58,7 +58,7 @@
       <li>
         <h3>{{ topic.title }}</h3>
         <p class="topic-description">{{ topic.description }}</p>
-        <p class="topic-author">Zgłasza {{ topic.author }}</p>
+        <p class="topic-author">Zgłasza {% if topic.author_active %}<a href="{{ url_for('panel', widok='profil', czlonek=topic.author_id) }}">{{ topic.author }}</a>{% else %}{{ topic.author }}{% endif %}</p>
         {% if topic.reading_url %}
         <a class="topic-attachment" href="{{ topic.reading_url }}" target="_blank" rel="noopener noreferrer">Otwórz materiał do przeczytania</a>
         {% elif topic.reading_filename %}
