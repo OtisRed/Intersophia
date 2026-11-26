@@ -4,6 +4,7 @@ const sessionUrl = '/panel?widok=sesja-adnotacji';
 const targetSelector = [
   '[data-annotation-target]',
   '.question[data-question-id]',
+  '.side-link[data-question-id]',
   '.acc-btn[id]',
   '.acc-item[data-question-id] .acc-body',
   '.acc-static[data-question-id]',
@@ -23,19 +24,133 @@ function currentPanelView() {
   return new URLSearchParams(location.search).get('widok') === 'dostep' ? 'access' : 'invites';
 }
 
+function currentView() {
+  return location.pathname === '/panel'
+    ? `panel:${currentPanelView()}`
+    : `faq:${location.hash.slice(1) || 'home'}`;
+}
+
 function contextFor(element) {
-  const question = element.closest('[data-question-id]')?.dataset.questionId;
+  const question = element.dataset.annotationQuestion ?? element.closest('[data-question-id]')?.dataset.questionId;
   const panel = location.pathname === '/panel';
-  const view = panel ? currentPanelView() : (question ?? location.hash.slice(1));
+  const global = element.dataset.annotationTarget?.startsWith('page-');
+  const view = panel ? currentPanelView() : (global ? 'home' : question ?? location.hash.slice(1));
   const target = element.dataset.annotationTarget
-    ?? `faq:${question}:${element.matches('.acc-btn') ? 'question' : 'answer'}`;
+    ?? `faq:${question}:${element.matches('.acc-btn, .side-link') ? 'question' : 'answer'}`;
   return { view: `${panel ? 'panel' : 'faq'}:${view || 'home'}`, target };
 }
 
 function visibleTargets() {
   return [...document.querySelectorAll(targetSelector)]
     .filter(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible'
-      && !element.closest('[inert], [aria-hidden="true"]'));
+      && !element.closest('[inert], [aria-hidden="true"], [data-annotation-private]'));
+}
+
+function anchorKey({ view, target }) {
+  return `${view}/${target}`;
+}
+
+function anchorKeys(entry) {
+  if (!entry.target.startsWith('region|')) return [anchorKey(entry)];
+  const parts = entry.target.slice(7).split('|');
+  return parts[0].startsWith('@') ? parts.slice(1) : parts;
+}
+
+function corners(start, end) {
+  return { left: Math.min(start.x, end.x), top: Math.min(start.y, end.y),
+    right: Math.max(start.x, end.x), bottom: Math.max(start.y, end.y) };
+}
+
+function intersect(a, b) {
+  const left = Math.max(a.left, b.left);
+  const top = Math.max(a.top, b.top);
+  const right = Math.min(a.right, b.right);
+  const bottom = Math.min(a.bottom, b.bottom);
+  return right > left && bottom > top ? { left, top, right, bottom, width: right - left, height: bottom - top } : null;
+}
+
+function visibleRect(element) {
+  let rect = intersect(element.getBoundingClientRect(), { left: 0, top: 0, right: innerWidth, bottom: innerHeight });
+  for (let parent = element.parentElement; rect && parent && parent !== document.body; parent = parent.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(parent);
+    if (overflowX === 'visible' && overflowY === 'visible') continue;
+    const clip = parent.getBoundingClientRect();
+    rect = intersect(rect, {
+      left: overflowX === 'visible' ? rect.left : clip.left,
+      right: overflowX === 'visible' ? rect.right : clip.right,
+      top: overflowY === 'visible' ? rect.top : clip.top,
+      bottom: overflowY === 'visible' ? rect.bottom : clip.bottom,
+    });
+  }
+  return rect;
+}
+
+function regionAnchors(rect, targets = visibleTargets().map(element => [element, visibleRect(element)])) {
+  const area = (rect.right - rect.left) * (rect.bottom - rect.top);
+  const candidates = targets.filter(([, bounds]) => {
+    const overlap = bounds && intersect(rect, bounds);
+    return overlap && overlap.width * overlap.height >= .5 * Math.min(area, bounds.width * bounds.height);
+  }).map(([element]) => element);
+  return [...new Set(candidates
+    .filter(element => !candidates.some(child => child !== element && element.contains(child)))
+    .map(element => anchorKey(contextFor(element))))];
+}
+
+function isSpace(target) {
+  return target.startsWith('space|');
+}
+
+function spaceReference(name) {
+  return (name === 'page' ? document.documentElement : document.querySelector(name))?.getBoundingClientRect();
+}
+
+function rectangleReference(rect) {
+  const name = ['main', 'header', 'page'].find(candidate => {
+    const bounds = spaceReference(candidate);
+    return bounds && rect.left >= bounds.left && rect.right <= bounds.right
+      && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+  }) ?? 'page';
+  const bounds = spaceReference(name);
+  const unit = (position, offset, size) => Math.round(Math.max(0, Math.min(1, (position - offset) / size)) * 10000);
+  const coordinates = [unit(rect.left, bounds.left, bounds.width), unit(rect.top, bounds.top, bounds.height),
+    unit(rect.right, bounds.left, bounds.width), unit(rect.bottom, bounds.top, bounds.height)];
+  return { name, coordinates: coordinates.join(',') };
+}
+
+function overlapsPrivateArea(rect) {
+  return [...document.querySelectorAll('[data-annotation-private]')].some(element => {
+    const bounds = visibleRect(element);
+    return bounds && intersect(rect, bounds);
+  });
+}
+
+function projectRectangle(name, coordinates) {
+  if (!['main', 'header', 'page'].includes(name) || !/^\d{1,5}(,\d{1,5}){3}$/.test(coordinates)) return null;
+  const bounds = spaceReference(name);
+  if (!bounds?.width || !bounds.height) return null;
+  const [left, top, right, bottom] = coordinates.split(',').map(value => Number(value) / 10000);
+  return intersect({
+    left: bounds.left + left * bounds.width, top: bounds.top + top * bounds.height,
+    right: bounds.left + right * bounds.width, bottom: bounds.top + bottom * bounds.height,
+  }, { left: 0, top: 0, right: innerWidth, bottom: innerHeight });
+}
+
+function projectSpace(target, targets) {
+  const [, name, coordinates] = target.split('|');
+  const rect = projectRectangle(name, coordinates);
+  return rect && rect.width >= 6 && rect.height >= 6 && !regionAnchors(rect, targets).length
+    && !overlapsPrivateArea(rect) ? rect : null;
+}
+
+function regionLayout() {
+  const breakpoint = location.pathname === '/panel' ? 650 : 960;
+  return matchMedia(`(max-width: ${breakpoint}px)`).matches ? 'mobile' : 'desktop';
+}
+
+function projectRegion({ view, target }) {
+  if (view !== currentView() || !target.startsWith('region|@')) return null;
+  const [layout, name, coordinates] = target.slice(8).split('|', 1)[0].split('/');
+  return layout === regionLayout() ? projectRectangle(name, coordinates) : null;
 }
 
 let rendererPromise;
@@ -72,20 +187,25 @@ async function start() {
   const ui = document.createElement('div');
   ui.className = 'annotations-ui';
   ui.innerHTML = `
-    <div class="annotations-toolbar" aria-label="Tryb adnotacji">
-      <span class="annotations-hint" role="status" hidden>Wskaż element. Klawiaturą użyj strzałek i Enter.</span>
-      <span data-list-status role="status" hidden></span>
-      <button type="button" data-list hidden>Uwagi na stronie</button>
-      <button type="button" data-add hidden>Dodaj adnotację</button>
-      <button type="button" data-toggle aria-pressed="false">Adnotacje</button>
+    <div class="annotations-toolbar" role="group" aria-label="Tryb adnotacji">
+      <span class="annotations-hint" role="status" hidden></span>
+      <span data-list-status class="annotations-sr-only" role="status"></span>
+      <div class="annotations-filter" data-filter-bar hidden>
+        <label for="annotation-filter" class="annotations-sr-only">Zakres adnotacji</label>
+        <select id="annotation-filter"><option value="wszystkie">Wszystkie</option><option value="moje">Moje</option></select>
+      </div>
+      <button type="button" data-list title="Lista uwag" hidden>Uwagi</button>
+      <button type="button" data-add hidden>Zrób adnotację</button>
+      <button type="button" data-toggle>Adnotacje</button>
     </div>
+    <div class="annotations-region-input" hidden aria-hidden="true"></div>
     <div class="annotations-markers" hidden></div>
     <div class="annotations-outline" aria-hidden="true" hidden></div>
     <dialog class="annotations-dialog" aria-labelledby="annotations-title">
       <form method="dialog">
         <h2 id="annotations-title">Nowa adnotacja</h2>
         <p data-progress role="status"></p>
-        <img data-preview alt="Wycinek wybranego elementu" hidden>
+        <img data-preview alt="Wycinek zaznaczenia" hidden>
         <label for="annotations-comment">Komentarz</label>
         <textarea id="annotations-comment" rows="3" maxlength="3000"></textarea>
         <div class="annotations-actions">
@@ -96,62 +216,63 @@ async function start() {
       </form>
     </dialog>
     <dialog class="annotations-dialog" data-library aria-labelledby="annotation-library-title">
-      <h2 id="annotation-library-title">Uwagi na stronie</h2>
-      <label for="annotation-filter">Pokaż</label>
-      <select id="annotation-filter"><option value="wszystkie">Wszystkie</option><option value="moje">Moje</option></select>
-      <p data-library-status role="status"></p>
-      <ul class="annotations-list"></ul>
+      <h2 id="annotation-library-title" tabindex="-1">Uwagi na stronie</h2>
+      <button type="button" data-close-direct hidden aria-label="Zamknij podgląd rozmowy" title="Zamknij podgląd rozmowy">×</button>
+      <div data-library-list>
+        <p data-library-status role="status"></p>
+        <ul class="annotations-list"></ul>
+      </div>
       <section class="annotations-detail" hidden>
-        <p data-author></p>
-        <p data-anchor-missing hidden>Element nie jest widoczny w tym widoku. Poniżej jest zapisany wycinek.</p>
-        <p data-comment></p>
-        <img data-saved-preview alt="Zapisany wycinek">
-        <a data-location>Przejdź do widoku</a>
-        <section class="annotations-discussion" aria-labelledby="annotation-discussion-title">
-          <h3 id="annotation-discussion-title">Dyskusja</h3>
-          <p data-thread-status role="status"></p>
-          <ol data-replies></ol>
-          <form data-reply-form hidden>
-            <label for="annotation-reply">Twoja odpowiedź</label>
-            <textarea id="annotation-reply" rows="2" maxlength="3000" required></textarea>
-            <div class="annotations-actions"><button type="submit">Odpowiedz</button></div>
-          </form>
-          <button type="button" data-close-thread hidden>Zamknij dyskusję</button>
-        </section>
-        <section class="annotations-export" data-export hidden aria-label="Publikacja na GitHubie">
-          <button type="button" data-export-open hidden>Zgłoś na GitHub</button>
-          <button type="button" data-export-check hidden>Sprawdź wynik na GitHubie</button>
-          <a data-export-result hidden target="_blank" rel="noopener">Otwórz zgłoszenie na GitHubie</a>
-          <p data-export-status role="status"></p>
-          <div data-export-fields hidden>
-            <form>
-              <label for="annotation-export-title">Tytuł zgłoszenia</label>
-              <input id="annotation-export-title" name="title" maxlength="120" required>
-              <label for="annotation-export-summary">Opis zgłoszenia</label>
-              <textarea id="annotation-export-summary" name="summary" rows="3" maxlength="3000" required></textarea>
-              <fieldset><legend>Odpowiedzi do opublikowania</legend><div data-export-choices></div></fieldset>
-              <button type="submit">Pokaż podgląd zgłoszenia</button>
+        <div data-discussion-view>
+          <p data-author></p>
+          <p data-anchor-missing hidden>Element nie jest widoczny w tym widoku. Poniżej jest zapisany wycinek.</p>
+          <p data-comment></p>
+          <img data-saved-preview alt="Zapisany wycinek">
+          <a data-location>Przejdź do widoku</a>
+          <section class="annotations-discussion" aria-labelledby="annotation-discussion-title">
+            <h3 id="annotation-discussion-title">Dyskusja</h3>
+            <p data-thread-status role="status"></p>
+            <ol data-replies></ol>
+            <form data-reply-form hidden>
+              <label for="annotation-reply">Twoja odpowiedź</label>
+              <textarea id="annotation-reply" rows="2" maxlength="3000" required></textarea>
+              <div class="annotations-actions"><button type="submit">Odpowiedz</button></div>
             </form>
-          </div>
-          <div data-export-preview hidden>
-            <h3>Podgląd publicznego zgłoszenia</h3>
-            <p>Repozytorium OtisRed/Intersophia</p>
-            <strong data-export-title></strong>
-            <pre data-export-body></pre>
-            <img alt="Wycinek do publicznego zgłoszenia">
-            <div class="annotations-actions">
-              <button type="button" data-export-edit>Edytuj</button>
-              <button type="button" data-export-confirm disabled>Potwierdź i opublikuj</button>
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
+        <div class="annotations-export" data-export-fields hidden>
+          <form aria-label="Zgłoszenie na GitHub">
+            <label for="annotation-export-title">Tytuł zgłoszenia</label>
+            <input id="annotation-export-title" name="title" maxlength="120" required>
+            <label for="annotation-export-summary">Opis zgłoszenia</label>
+            <textarea id="annotation-export-summary" name="summary" rows="4" maxlength="3000" required></textarea>
+            <fieldset><legend>Odpowiedzi do opublikowania</legend><div data-export-choices></div></fieldset>
+            <p>Do zgłoszenia dołączymy zapisany wycinek i adres widoku.</p>
+            <button type="submit" data-export-retry hidden>Sprawdź ponownie</button>
+          </form>
+        </div>
+        <div class="annotations-thread-actions" role="group" aria-label="Działania wątku">
+          <button type="button" data-close-thread hidden>Zamknij dyskusję</button>
+          <section class="annotations-export" data-export hidden aria-label="Publikacja na GitHubie">
+            <button type="button" data-export-open hidden>Zgłoś na GitHub</button>
+            <button type="button" data-export-check hidden>Sprawdź wynik na GitHubie</button>
+            <a data-export-result hidden target="_blank" rel="noopener">Otwórz zgłoszenie na GitHubie</a>
+            <button type="button" data-export-cancel hidden>Wróć do dyskusji</button>
+            <button type="button" data-export-confirm hidden disabled>Potwierdź i opublikuj</button>
+            <p data-export-status role="status"></p>
+          </section>
+        </div>
       </section>
-      <form class="annotations-actions" method="dialog"><button type="submit">Zamknij</button></form>
+      <form class="annotations-actions" method="dialog" data-library-actions>
+        <button type="button" data-back-to-list hidden>Wróć do listy</button>
+        <button type="submit">Zamknij</button>
+      </form>
     </dialog>`;
   document.body.append(ui);
 
   const toggle = ui.querySelector('[data-toggle]');
   const add = ui.querySelector('[data-add]');
+  const regionInput = ui.querySelector('.annotations-region-input');
   const listButton = ui.querySelector('[data-list]');
   const markers = ui.querySelector('.annotations-markers');
   const listStatus = ui.querySelector('[data-list-status]');
@@ -164,7 +285,13 @@ async function start() {
   const save = ui.querySelector('[data-save]');
   const comment = ui.querySelector('textarea');
   const library = ui.querySelector('[data-library]');
-  const filter = library.querySelector('select');
+  const libraryTitle = library.querySelector('h2');
+  const libraryList = library.querySelector('[data-library-list]');
+  const backToList = library.querySelector('[data-back-to-list]');
+  const closeDirect = library.querySelector('[data-close-direct]');
+  const libraryActions = library.querySelector('[data-library-actions]');
+  const filterBar = ui.querySelector('[data-filter-bar]');
+  const filter = filterBar.querySelector('select');
   const list = library.querySelector('ul');
   const detail = library.querySelector('.annotations-detail');
   const missingAnchor = detail.querySelector('[data-anchor-missing]');
@@ -177,7 +304,7 @@ async function start() {
   const closeThread = library.querySelector('[data-close-thread]');
   const replyDateFormat = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
   const api = '/panel?widok=adnotacje';
-  const publication = annotationExport(library, session.csrf, api);
+  const publication = annotationExport(library, session.csrf, api, positionContext);
   const scope = location.pathname === '/panel' ? `panel:${currentPanelView()}` : 'faq';
   let entries = [];
   let listAttempt = 0;
@@ -186,24 +313,25 @@ async function start() {
   let imageBlob;
   let previewUrl;
   let saving = false;
-  let picking = false;
+  let regionStart;
+  let capturedRegion;
   let focusedElement;
   let capturedElement;
   let selectedEntry;
+  let listTrigger;
+  let directTrigger;
   let captureAttempt = 0;
   let threadAttempt = 0;
   let threadWriting = false;
   let replyDraft;
 
   function isActive() {
-    return toggle.getAttribute('aria-pressed') === 'true';
+    return document.body.classList.contains('annotations-mode');
   }
 
-  function findAnchor(entry) {
-    return visibleTargets().find(node => {
-      const { view, target } = contextFor(node);
-      return view === entry.view && target === entry.target;
-    });
+  function findAnchors(entry) {
+    const targets = new Map(visibleTargets().map(node => [anchorKey(contextFor(node)), node]));
+    return anchorKeys(entry).map(key => targets.get(key)).filter(Boolean);
   }
 
   function dockDialog(modal, rect) {
@@ -220,34 +348,89 @@ async function start() {
     }
   }
 
-  function positionContext() {
-    const modal = dialog.open ? dialog : library;
-    const element = dialog.open ? capturedElement : selectedEntry && findAnchor(selectedEntry);
-    const rect = element?.isConnected ? element.getBoundingClientRect() : null;
-    const visible = Boolean(modal.open && rect && rect.width && rect.height
-      && rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth);
-    modal.classList.toggle('annotations-context', visible);
-    outline.classList.toggle('annotations-outline-context', visible);
-    missingAnchor.hidden = !selectedEntry || visible;
-    drawOutline(visible ? rect : null);
-    if (visible) dockDialog(modal, rect);
-    else delete modal.dataset.dock;
+  function placeDirectThread() {
+    const marker = directTrigger?.getBoundingClientRect();
+    if (!marker) return;
+    const width = library.getBoundingClientRect().width;
+    const right = marker.right + 10;
+    const left = right + width <= innerWidth - 12 ? right
+      : marker.left - width >= 22 ? marker.left - width - 10 : (innerWidth - width) / 2;
+    library.style.setProperty('--thread-left', `${Math.max(12, Math.min(left, innerWidth - width - 12))}px`);
+    const top = Math.min(marker.top, innerHeight - library.offsetHeight - 12);
+    library.style.setProperty('--thread-top', `${Math.max(12, top)}px`);
   }
 
-  function showEntry(entry) {
+  function positionContext() {
+    const modal = dialog.open ? dialog : library;
+    const space = !dialog.open && selectedEntry && isSpace(selectedEntry.target);
+    const savedRegion = !dialog.open && selectedEntry?.target.startsWith('region|');
+    const area = dialog.open ? Boolean(capturedRegion) : space || savedRegion;
+    let rect;
+    if (dialog.open && capturedRegion) {
+      rect = intersect(viewportRegion(), { left: 0, top: 0, right: innerWidth, bottom: innerHeight });
+    } else if (space) {
+      rect = selectedEntry.view === currentView() && projectSpace(selectedEntry.target);
+    } else if (savedRegion) {
+      rect = projectRegion(selectedEntry);
+    } else {
+      const element = dialog.open ? capturedElement : selectedEntry && findAnchors(selectedEntry)[0];
+      if (element?.isConnected) rect = visibleRect(element);
+    }
+    const visible = Boolean(modal.open && rect);
+    const direct = modal === library && Boolean(directTrigger);
+    modal.classList.toggle('annotations-context', visible);
+    outline.classList.toggle('annotations-outline-context', visible && !area && !direct);
+    outline.classList.toggle('annotations-outline-region', visible && Boolean(area));
+    missingAnchor.hidden = !selectedEntry || visible;
+    missingAnchor.textContent = space
+      ? 'Tego pustego miejsca nie da się teraz wskazać. Poniżej jest oryginalny wycinek.'
+      : savedRegion
+        ? 'Poniżej jest oryginalny wycinek zaznaczenia.'
+        : 'Element nie jest widoczny w tym widoku. Poniżej jest zapisany wycinek.';
+    drawOutline(visible ? rect : null);
+    if (direct) {
+      detail.querySelector('[data-saved-preview]').hidden = visible;
+      detail.querySelector('[data-location]').hidden = visible;
+      delete modal.dataset.dock;
+      placeDirectThread();
+    }
+    if (!visible) {
+      delete modal.dataset.dock;
+      return;
+    }
+    if (!direct) dockDialog(modal, rect);
+  }
+
+  function showEntry(entry, trigger, direct = false) {
     publication.reset();
     selectedEntry = entry;
+    listTrigger = direct ? null : trigger;
+    directTrigger = direct ? trigger : null;
+    library.toggleAttribute('data-direct', direct);
+    libraryTitle.textContent = direct ? 'Rozmowa o adnotacji' : 'Adnotacja';
+    libraryTitle.classList.toggle('annotations-sr-only', direct);
+    libraryList.hidden = true;
+    backToList.hidden = direct || !trigger;
+    closeDirect.hidden = !direct;
+    libraryActions.hidden = direct;
     detail.hidden = false;
     detail.querySelector('[data-author]').textContent = entry.author;
     detail.querySelector('[data-comment]').textContent = entry.comment;
     detail.querySelector('[data-saved-preview]').src = `${api}&obraz=${entry.id}`;
     detail.querySelector('[data-location]').href = entry.path;
-    const anchor = findAnchor(entry);
-    const rect = anchor?.getBoundingClientRect();
-    if (rect && (rect.bottom <= 0 || rect.top >= innerHeight)) {
-      anchor.scrollIntoView({ block: 'center', inline: 'nearest' });
+    detail.querySelector('[data-saved-preview]').hidden = direct;
+    detail.querySelector('[data-location]').hidden = direct;
+    if (!library.open) {
+      if (direct) library.show();
+      else library.showModal();
+    }
+    if (!isSpace(entry.target)) {
+      const anchors = findAnchors(entry);
+      if (!anchors.some(visibleRect)) anchors[0]?.scrollIntoView({ block: 'center', inline: 'nearest' });
     }
     positionContext();
+    library.scrollTop = 0;
+    libraryTitle.focus({ preventScroll: true });
     replyInput.value = '';
     replyDraft = null;
     void loadDiscussion(entry.id);
@@ -275,6 +458,7 @@ async function start() {
     replyForm.hidden = thread.closed;
     closeThread.hidden = !thread.can_close;
     publication.show(selectedEntry, thread);
+    if (directTrigger) placeDirectThread();
   }
 
   async function loadDiscussion(id) {
@@ -338,25 +522,36 @@ async function start() {
     }
   }
 
-  function openLibrary(entry) {
+  function showList() {
     selectedEntry = null;
+    directTrigger = null;
+    threadAttempt++;
+    publication.reset();
+    library.removeAttribute('data-direct');
+    libraryTitle.textContent = 'Uwagi na stronie';
+    libraryTitle.classList.remove('annotations-sr-only');
+    libraryList.hidden = false;
+    backToList.hidden = true;
+    closeDirect.hidden = true;
+    libraryActions.hidden = false;
     detail.hidden = true;
-    library.showModal();
-    if (entry) showEntry(entry);
+    detail.querySelector('[data-saved-preview]').removeAttribute('src');
+    positionContext();
   }
 
   function positionMarkers() {
     if (layoutFrame) return;
     layoutFrame = requestAnimationFrame(() => {
       layoutFrame = null;
-      if (!isActive() || picking) return;
-      const positions = new Map(visibleTargets().map(node => {
-        const { view, target } = contextFor(node);
-        return [`${view}/${target}`, node.getBoundingClientRect()];
-      }));
+      if (!isActive() || !regionInput.hidden) return;
+      const targets = visibleTargets().map(node => [node, visibleRect(node)]);
+      const positions = new Map(targets.map(([node, rect]) => [anchorKey(contextFor(node)), rect]));
       for (const button of markers.children) {
-        const rect = positions.get(button.dataset.anchor);
-        button.hidden = !rect || rect.bottom <= 0 || rect.top >= innerHeight;
+        const entry = { view: button.dataset.view, target: button.dataset.target };
+        const rect = isSpace(entry.target)
+          ? entry.view === currentView() && projectSpace(entry.target, targets)
+          : projectRegion(entry) || anchorKeys(entry).map(key => positions.get(key)).find(Boolean);
+        button.hidden = !rect;
         if (!button.hidden) {
           button.style.left = `${Math.max(0, Math.min(innerWidth - 28, rect.right - 14))}px`;
           button.style.top = `${Math.max(0, rect.top - 10)}px`;
@@ -374,20 +569,23 @@ async function start() {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = `${index + 1}. ${entry.comment.length > 85 ? entry.comment.slice(0, 82) + '…' : entry.comment}`;
-      button.addEventListener('click', () => showEntry(entry));
+      button.addEventListener('click', () => showEntry(entry, button));
       item.append(button);
       list.append(item);
 
-      const anchor = `${entry.view}/${entry.target}`;
-      if (pinned.has(anchor)) return;
-      pinned.set(anchor, entry);
+      const pinKey = anchorKey(entry);
+      if (pinned.has(pinKey)) return;
+      pinned.set(pinKey, entry);
       const pin = document.createElement('button');
       pin.type = 'button';
       pin.hidden = true;
-      pin.dataset.anchor = anchor;
+      pin.dataset.target = entry.target;
+      pin.dataset.view = entry.view;
       pin.textContent = String(index + 1);
-      pin.setAttribute('aria-label', `Otwórz adnotację ${index + 1}`);
-      pin.addEventListener('click', () => openLibrary(entry));
+      const description = `${entry.author} · ${entry.comment.slice(0, 95)}`;
+      pin.setAttribute('aria-label', `Otwórz adnotację ${index + 1}: ${description}`);
+      pin.title = description;
+      pin.addEventListener('click', () => showEntry(entry, pin, true));
       markers.append(pin);
     });
     libraryStatus.textContent = entries.length ? '' : 'Brak uwag w tym widoku.';
@@ -397,10 +595,7 @@ async function start() {
   async function refreshEntries() {
     const attempt = ++listAttempt;
     libraryStatus.textContent = 'Wczytuję uwagi…';
-    detail.hidden = true;
-    selectedEntry = null;
-    publication.reset();
-    if (library.open) positionContext();
+    if (!selectedEntry) showList();
     const query = new URLSearchParams({ zakres: scope, filtr: filter.value });
     try {
       const response = await fetch(`${api}&${query}`, { cache: 'no-store' });
@@ -423,19 +618,24 @@ async function start() {
   }
 
   function drawOutline(rect) {
-    outline.hidden = !rect || rect.width === 0 || rect.height === 0;
+    outline.hidden = !rect || rect.right === rect.left || rect.bottom === rect.top;
     if (outline.hidden) return;
-    Object.assign(outline.style, {
+    placeOutline(outline, rect);
+  }
+
+  function placeOutline(node, rect) {
+    Object.assign(node.style, {
       left: `${rect.left}px`, top: `${rect.top}px`,
-      width: `${rect.width}px`, height: `${rect.height}px`,
+      width: `${rect.right - rect.left}px`, height: `${rect.bottom - rect.top}px`,
     });
   }
 
   function stopPicking() {
-    picking = false;
-    document.body.classList.remove('annotations-picking');
+    regionStart = null;
+    regionInput.hidden = true;
     hint.hidden = true;
-    add.removeAttribute('aria-pressed');
+    add.textContent = 'Zrób adnotację';
+    filterBar.hidden = listButton.hidden = !isActive();
     highlight(null);
     markers.hidden = !isActive();
     positionMarkers();
@@ -453,18 +653,24 @@ async function start() {
   async function snapshot() {
     const attempt = ++captureAttempt;
     const element = capturedElement;
+    const region = capturedRegion;
     clearPreview();
     retry.hidden = true;
     progress.textContent = 'Tworzę wycinek…';
     try {
       const render = await loadRenderer();
-      if (!element?.isConnected) throw new Error('The selected element changed');
-      const { width, height } = element.getBoundingClientRect();
-      const canvas = await render(element, {
+      if (!region && !element?.isConnected) throw new Error('The selected element changed');
+      const { width, height } = region ?? element.getBoundingClientRect();
+      const canvas = await render(region ? document.documentElement : element, {
+        ...(region ? { x: region.left, y: region.top, width, height } : {}),
         backgroundColor: getComputedStyle(document.body).backgroundColor,
         scale: Math.min(1, 2047 / width, 2047 / height, Math.sqrt(1_950_000 / (width * height))),
         logging: false,
-        ignoreElements: node => node.matches('.annotations-ui, input, textarea, [data-annotation-private]'),
+        ignoreElements: node => node.matches('.annotations-ui'),
+        onclone: doc => doc.querySelectorAll('input, textarea, [data-annotation-private]').forEach(node => {
+          node.style.setProperty('visibility', 'hidden', 'important');
+          node.querySelectorAll('*').forEach(child => child.style.setProperty('visibility', 'hidden', 'important'));
+        }),
       });
       if (!canvas.width || !canvas.height) throw new Error('Empty snapshot');
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -479,13 +685,23 @@ async function start() {
     } catch {
       if (attempt !== captureAttempt) return;
       progress.textContent = 'Nie udało się przygotować wycinka.';
-      retry.hidden = !element?.isConnected;
+      retry.hidden = !region && !element?.isConnected;
     }
   }
 
   function choose(element) {
     capturedElement = element;
-    const { view, target } = contextFor(element);
+    capturedRegion = null;
+    openDraft(contextFor(element));
+  }
+
+  function viewportRegion() {
+    return { left: capturedRegion.left - scrollX, top: capturedRegion.top - scrollY,
+      right: capturedRegion.left + capturedRegion.width - scrollX,
+      bottom: capturedRegion.top + capturedRegion.height - scrollY };
+  }
+
+  function openDraft({ view, target }) {
     dialog.dataset.annotationView = view;
     dialog.dataset.annotationTarget = target;
     draft = crypto.randomUUID();
@@ -499,27 +715,80 @@ async function start() {
 
   toggle.addEventListener('click', () => {
     const active = !isActive();
-    toggle.setAttribute('aria-pressed', String(active));
+    if (!active && directTrigger) library.close();
     document.body.classList.toggle('annotations-mode', active);
+    toggle.textContent = active ? 'Wyjdź' : 'Adnotacje';
     add.hidden = !active;
-    listButton.hidden = !active;
-    markers.hidden = !active;
-    if (!active) stopPicking();
-    else void refreshEntries();
+    stopPicking();
+    if (active) void refreshEntries();
   });
   add.addEventListener('click', () => {
-    if (picking) {
-      stopPicking();
+    if (!regionInput.hidden) return stopPicking();
+    if (directTrigger) library.close();
+    regionInput.hidden = false;
+    markers.hidden = filterBar.hidden = listButton.hidden = true;
+    add.textContent = 'Wróć do odczytu';
+    hint.textContent = 'Przeciągnij, aby zaznaczyć obszar, lub kliknij element. Esc anuluje.';
+    hint.hidden = false;
+  });
+  regionInput.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    event.preventDefault();
+    regionInput.setPointerCapture(event.pointerId);
+    highlight(null);
+    regionStart = { x: event.clientX, y: event.clientY };
+  });
+  regionInput.addEventListener('pointermove', event => {
+    if (event.isPrimary && regionStart) drawOutline(corners(regionStart, { x: event.clientX, y: event.clientY }));
+  });
+  regionInput.addEventListener('pointercancel', () => {
+    regionStart = null;
+    drawOutline(null);
+  });
+  regionInput.addEventListener('pointerup', event => {
+    if (!event.isPrimary || !regionStart) return;
+    const end = { x: event.clientX, y: event.clientY };
+    const selection = corners(regionStart, end);
+    regionStart = null;
+    drawOutline(null);
+    if (selection.right - selection.left < 5 && selection.bottom - selection.top < 5) {
+      const hit = document.elementsFromPoint(end.x, end.y).find(node => !ui.contains(node));
+      const target = !hit?.closest('[data-annotation-private]') && hit?.closest(targetSelector);
+      if (target) choose(target);
       return;
     }
-    picking = true;
-    document.body.classList.add('annotations-picking');
-    markers.hidden = true;
-    hint.hidden = false;
-    add.setAttribute('aria-pressed', 'true');
+    const rect = intersect(selection, { left: 0, top: 0, right: innerWidth, bottom: innerHeight });
+    if (!rect || rect.width < 12 || rect.height < 12) return;
+    const keys = regionAnchors(rect);
+    if (keys.length > 24) {
+      hint.textContent = 'Zaznacz mniejszy obszar.';
+      return;
+    }
+    if (!keys.length && overlapsPrivateArea(rect)) {
+      hint.textContent = 'Wskaż puste miejsce poza obszarem danych prywatnych.';
+      return;
+    }
+    capturedElement = null;
+    capturedRegion = { left: rect.left + scrollX, top: rect.top + scrollY, width: rect.width, height: rect.height };
+    const { name, coordinates } = rectangleReference(rect);
+    const target = keys.length ? `region|@${regionLayout()}/${name}/${coordinates}|${keys.join('|')}`
+      : `space|${name}|${coordinates}`;
+    openDraft({ view: currentView(), target });
   });
   retry.addEventListener('click', snapshot);
-  listButton.addEventListener('click', () => openLibrary());
+  listButton.addEventListener('click', () => {
+    if (library.open) library.close();
+    showList();
+    listTrigger = null;
+    library.showModal();
+  });
+  backToList.addEventListener('click', () => {
+    showList();
+    if (listTrigger?.isConnected) listTrigger.focus();
+    else libraryTitle.focus({ preventScroll: true });
+    listTrigger = null;
+  });
+  closeDirect.addEventListener('click', () => library.close());
   filter.addEventListener('change', refreshEntries);
   replyForm.addEventListener('submit', event => {
     event.preventDefault();
@@ -527,11 +796,14 @@ async function start() {
   });
   closeThread.addEventListener('click', () => updateDiscussion('close'));
   library.addEventListener('close', () => {
-    selectedEntry = null;
-    publication.reset();
-    detail.hidden = true;
-    detail.querySelector('[data-saved-preview]').removeAttribute('src');
-    positionContext();
+    if (library.open) return;
+    const previousMarker = directTrigger;
+    showList();
+    listTrigger = null;
+    if (isActive() && regionInput.hidden && previousMarker?.isConnected
+      && (document.activeElement === document.body || library.contains(document.activeElement))) {
+      previousMarker.focus({ preventScroll: true });
+    }
   });
   save.addEventListener('click', async () => {
     if (saving || !imageBlob) return;
@@ -555,7 +827,6 @@ async function start() {
       if (!response.ok) throw new Error('Could not save annotation');
       dialog.close();
       listStatus.textContent = 'Adnotacja zapisana.';
-      listStatus.hidden = false;
       await refreshEntries();
     } catch {
       progress.textContent = 'Nie udało się zapisać adnotacji. Spróbuj ponownie.';
@@ -570,16 +841,11 @@ async function start() {
     captureAttempt++;
     clearPreview();
     capturedElement = null;
+    capturedRegion = null;
     dialog.classList.remove('annotations-context');
     delete dialog.dataset.dock;
     positionContext();
     add.focus();
-  });
-
-  document.addEventListener('pointermove', event => {
-    if (picking && event.target instanceof Element) {
-      highlight(event.target.closest(targetSelector));
-    }
   });
 
   function isPageEvent(event) {
@@ -605,20 +871,22 @@ async function start() {
     if (isActive()) event.stopPropagation();
   });
   window.addEventListener('click', event => {
-    if (!isPageEvent(event)) return;
+    if (isPageEvent(event) && directTrigger) library.close();
     blockPageAction(event);
-    if (!picking) return;
-    const element = event.target.closest(targetSelector);
-    if (element) choose(element);
   }, true);
   window.addEventListener('keydown', event => {
     if (!isActive()) return;
+    if (event.key === 'Escape' && directTrigger) {
+      event.preventDefault();
+      library.close();
+      return;
+    }
     if (isPageEvent(event)) {
       event.stopImmediatePropagation();
       if (event.key === 'Enter' || event.key === ' ') event.preventDefault();
     }
     if (event.key === 'Tab' && !dialog.open && !library.open) {
-      const controls = [...ui.querySelectorAll('.annotations-toolbar button, .annotations-markers button')]
+      const controls = [...ui.querySelectorAll('.annotations-toolbar :is(button, select), .annotations-markers button')]
         .filter(button => button.getClientRects().length);
       const current = controls.indexOf(document.activeElement);
       const delta = event.shiftKey ? -1 : 1;
@@ -627,7 +895,7 @@ async function start() {
       controls[(start + delta + controls.length) % controls.length]?.focus({ preventScroll: true });
       return;
     }
-    if (!picking) return;
+    if (regionInput.hidden) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       stopPicking();
@@ -652,13 +920,14 @@ async function start() {
   }, true);
   function updatePositions() {
     if (dialog.open || library.open) positionContext();
-    else if (picking) highlight(focusedElement);
+    else if (!regionInput.hidden && !regionStart) highlight(focusedElement);
     else positionMarkers();
   }
   window.addEventListener('scroll', updatePositions, true);
   window.addEventListener('resize', updatePositions);
   window.addEventListener('hashchange', () => {
-    if (picking) stopPicking();
+    if (!regionInput.hidden) stopPicking();
+    positionMarkers();
     updatePositions();
   });
   const main = document.querySelector('main');

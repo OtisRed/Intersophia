@@ -1,6 +1,22 @@
 .annotations-ui {
-  color: #e6eef8;
-  font: 14px/1.45 system-ui, sans-serif;
+  --annotation-surface: #151719;
+  --annotation-field: #24282b;
+  --annotation-border: #69767d;
+  --annotation-ink: #f2f5f5;
+  --annotation-muted: #b5bfc3;
+  --annotation-accent: #80f5e2;
+  --annotation-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: var(--annotation-ink);
+  font: 13px/1.45 system-ui, sans-serif;
+}
+
+.annotations-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .annotations-toolbar {
@@ -12,32 +28,75 @@
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   max-width: calc(100% - 32px);
+}
+
+.annotations-mode .annotations-toolbar {
+  padding: 5px;
+  border: 1px solid var(--annotation-border);
+  border-block-start: 2px solid var(--annotation-accent);
+  background: var(--annotation-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
 }
 
 .annotations-ui button,
 .annotations-dialog textarea,
-.annotations-hint {
+.annotations-filter select,
+.annotations-export input[name="title"] {
   padding: 8px 12px;
-  border: 1px solid #4a5661;
-  border-radius: 9px;
-  background: #0b1926;
-  color: #e6eef8;
+  border: 1px solid var(--annotation-border);
+  border-radius: 2px;
+  background: var(--annotation-field);
+  color: var(--annotation-ink);
   font: inherit;
 }
 
-.annotations-ui button { min-height: 44px; cursor: pointer; }
-.annotations-ui button:hover { border-color: #d66c2c; }
-.annotations-ui button[aria-pressed="true"] { background: #d66c2c; color: #100d0a; }
-.annotations-ui :focus-visible { outline: 2px solid #a8d8ff; outline-offset: 3px; }
+.annotations-ui button, .annotations-filter select { min-height: 36px; cursor: pointer; }
+.annotations-ui button:hover { border-color: var(--annotation-accent); }
+.annotations-ui :is(.annotations-toolbar, .annotations-markers) button,
+.annotations-filter select { font: 12px/1.4 var(--annotation-mono); }
+.annotations-ui :is([data-save], [data-export-confirm]):enabled {
+  border-color: var(--annotation-accent);
+  background: var(--annotation-accent);
+  color: var(--annotation-surface);
+}
+.annotations-mode .annotations-toolbar [data-toggle] {
+  background: var(--annotation-surface);
+  color: var(--annotation-accent);
+}
+.annotations-ui :focus-visible { outline: 2px solid var(--annotation-accent); outline-offset: 3px; }
+
+.annotations-toolbar .annotations-hint {
+  flex-basis: 100%;
+  padding: 4px 8px;
+  color: var(--annotation-muted);
+  font: 12px/1.45 var(--annotation-mono);
+}
+
+@media (max-width: 600px) {
+  .annotations-mode .annotations-toolbar {
+    inset-inline: 12px;
+    width: max-content;
+    max-width: calc(100% - 24px);
+    margin-inline-start: auto;
+    box-sizing: border-box;
+  }
+
+  .annotations-toolbar button, .annotations-filter select { min-height: 44px; padding-inline: 8px; }
+  .annotations-dialog textarea, .annotations-export input[name="title"], .annotations-filter select { font-size: 16px; }
+}
 
 .annotations-mode :is(a, button, input, textarea, select, label, summary):not(.annotations-ui *) {
   cursor: not-allowed;
 }
 
-.annotations-picking :is(a, button, [data-annotation-target], [data-question-id]):not(.annotations-ui *) {
+.annotations-region-input {
+  position: fixed;
+  z-index: 1198;
+  inset: 0;
   cursor: crosshair;
+  touch-action: none;
 }
 
 .annotations-outline {
@@ -45,15 +104,16 @@
   z-index: 1199;
   pointer-events: none;
   box-sizing: border-box;
-  outline: 2px solid #d66c2c;
-  background: rgba(214, 108, 44, .2);
+  outline: 2px dashed var(--annotation-accent);
+  outline-offset: 3px;
+  background: rgb(128 245 226 / 11%);
 }
+
+.annotations-outline-region { background: transparent; }
 
 .annotations-outline-context {
   z-index: 1201;
-  outline: 2px dashed #f18e4f;
   outline-offset: 4px;
-  border-radius: 4px;
   background: transparent;
   box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .62);
 }
@@ -64,13 +124,56 @@
   max-height: calc(100% - 32px);
   margin: auto;
   padding: 18px;
-  border: 1px solid #4a5661;
-  border-radius: 14px;
-  background: #071927;
-  color: #e6eef8;
+  border: 1px solid var(--annotation-border);
+  border-block-start: 2px solid var(--annotation-accent);
+  border-radius: 2px;
+  background: var(--annotation-surface);
+  color: var(--annotation-ink);
+  box-shadow: 0 10px 36px rgb(0 0 0 / 55%);
 }
 
 .annotations-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.annotations-dialog[data-direct] {
+  position: fixed;
+  z-index: 1202;
+  inset: var(--thread-top, 12px) auto auto var(--thread-left, 12px);
+  width: min(340px, calc(100% - 24px));
+  max-height: min(66dvh, calc(100% - 24px));
+  margin: 0;
+  padding: 12px;
+  font-size: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.annotations-dialog[data-direct] [data-close-direct] {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-end: 6px;
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  background: var(--annotation-surface);
+  font-size: 17px;
+}
+
+.annotations-dialog[data-direct] [data-author] {
+  margin: 2px 36px 4px 0;
+  color: var(--annotation-accent);
+  font-weight: 650;
+}
+
+.annotations-dialog[data-direct] [data-comment] { margin: 0 30px 0 0; }
+.annotations-dialog[data-direct] .annotations-discussion { margin-top: 10px; padding-top: 8px; }
+.annotations-dialog [hidden] { display: none; }
+
+@media (max-width: 600px) {
+  .annotations-dialog[data-direct] {
+    inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px;
+    width: auto;
+  }
+}
+
 .annotations-context::backdrop { background: transparent; }
 .annotations-context[data-dock] { position: fixed; inset: auto; margin: 0; }
 .annotations-context[data-dock="left"], .annotations-context[data-dock="right"] {
@@ -86,17 +189,28 @@
 }
 .annotations-context[data-dock="top"] { inset-block-start: 16px; }
 .annotations-context[data-dock="bottom"] { inset-block-end: 16px; }
-.annotations-dialog h2 { margin: 0 0 12px; font-size: 1.15rem; }
+.annotations-dialog[data-export-editing] :is([data-close-thread], [data-library-actions]) { display: none; }
+.annotations-dialog :is(h2, h3),
+.annotations-dialog [data-export-fields] :is(label[for], legend) {
+  color: var(--annotation-accent);
+  font: 600 13px/1.4 var(--annotation-mono);
+}
+.annotations-dialog :is(h2, h3) { margin: 0 0 8px; }
+.annotations-dialog h2 { padding-block-end: 8px; border-block-end: 1px solid var(--annotation-border); }
+.annotations-dialog p { margin: 0 0 6px; font: inherit; }
 .annotations-dialog [data-progress]:empty { display: none; }
 .annotations-dialog img { max-width: 100%; max-height: 36dvh; object-fit: contain; margin-bottom: 12px; }
+@media (max-width: 600px) {
+  .annotations-context:is([data-dock="top"], [data-dock="bottom"]) {
+    max-height: min(calc(100% - 32px), max(var(--dock-height), 22rem));
+    padding: 14px;
+  }
+
+  .annotations-context img { max-height: 12dvh; }
+}
 .annotations-dialog label { display: block; margin-bottom: 4px; }
 .annotations-dialog textarea { box-sizing: border-box; width: 100%; resize: vertical; }
 .annotations-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.annotations-toolbar [data-list-status] {
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: #0b1926;
-}
 .annotations-ui button:disabled { opacity: .55; cursor: default; }
 .annotations-markers { position: fixed; z-index: 1198; inset: 0; pointer-events: none; }
 .annotations-markers button {
@@ -104,10 +218,10 @@
   min-width: 28px;
   min-height: 28px;
   padding: 1px 6px;
-  border: 1px solid #100d0a;
-  border-radius: 50%;
-  background: #d66c2c;
-  color: #100d0a;
+  border: 1px solid var(--annotation-surface);
+  border-radius: 2px;
+  background: var(--annotation-accent);
+  color: var(--annotation-surface);
   font-weight: 750;
   pointer-events: auto;
 }
@@ -115,44 +229,35 @@
 .annotations-list li + li { margin-top: 6px; }
 .annotations-list button { width: 100%; text-align: start; overflow-wrap: anywhere; }
 .annotations-detail [data-comment] { white-space: pre-wrap; overflow-wrap: anywhere; }
-.annotations-detail [data-anchor-missing] { color: #aebdca; }
-.annotations-detail [data-location] { display: block; color: #a8d8ff; }
-.annotations-discussion { margin-top: 16px; padding-top: 12px; border-top: 1px solid #4a5661; }
-.annotations-discussion h3 { margin: 0 0 8px; font-size: 1rem; }
+.annotations-detail [data-anchor-missing] { color: var(--annotation-muted); }
+.annotations-detail [data-location]:not([hidden]) { display: block; color: var(--annotation-accent); }
+.annotations-discussion { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--annotation-border); }
 .annotations-discussion ol { list-style: none; margin: 0 0 12px; padding: 0; }
 .annotations-discussion li + li { margin-top: 8px; }
-.annotations-discussion time { display: inline-block; margin-inline-start: 8px; color: #aebdca; font-size: .85em; }
+.annotations-discussion time { display: inline-block; margin-inline-start: 8px; color: var(--annotation-muted); font-size: .85em; }
 .annotations-discussion li p { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .annotations-discussion [data-thread-status]:empty { display: none; }
-.annotations-discussion [data-close-thread] { margin-top: 8px; }
-.annotations-export { margin-top: 16px; padding-top: 12px; border-top: 1px solid #4a5661; }
-.annotations-export h3 { margin: 0; font-size: 1rem; }
-.annotations-export [data-export-fields], .annotations-export [data-export-preview] { margin-top: 10px; }
+.annotations-thread-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--annotation-border);
+}
+.annotations-thread-actions:not(:has(> :not([hidden]))) { display: none; }
+.annotations-thread-actions > .annotations-export:not([hidden]) { display: contents; }
+.annotations-export [data-export-status] { flex: 0 0 100%; }
 .annotations-export input[name="title"] {
   box-sizing: border-box;
   width: 100%;
   margin-bottom: 8px;
-  padding: 8px;
-  border: 1px solid #4a5661;
-  border-radius: 9px;
-  background: #0b1926;
-  color: inherit;
-  font: inherit;
 }
-.annotations-export fieldset { margin: 8px 0; border: 1px solid #4a5661; border-radius: 8px; }
-.annotations-export label, .annotations-export strong { overflow-wrap: anywhere; }
+.annotations-export fieldset { margin: 8px 0; border: 1px solid var(--annotation-border); }
+.annotations-export label { overflow-wrap: anywhere; }
 .annotations-export input[type="checkbox"] { margin-inline-end: 8px; }
-.annotations-export pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .annotations-export [data-export-status]:empty { display: none; }
-.annotations-export a { color: #a8d8ff; }
-.annotations-dialog select {
-  padding: 6px 10px;
-  border: 1px solid #4a5661;
-  border-radius: 8px;
-  background: #0b1926;
-  color: inherit;
-  font: inherit;
-}
+.annotations-export a { color: var(--annotation-accent); }
 [data-library-status]:empty { display: none; }
-.annotations-dialog label[for="annotation-filter"] { display: inline; margin-inline-end: 6px; }
 .annotations-dialog [data-library-status], .annotations-list { margin-top: 10px; }
