@@ -326,6 +326,8 @@
       if (!section.hideHeading) {
         const title = document.createElement('h2');
         title.className = 'side-title';
+        title.dataset.annotationTarget = 'section-heading';
+        title.dataset.annotationQuestion = validItems[0].id;
         title.textContent = section.section;
         sectionEl.appendChild(title);
       }
@@ -361,6 +363,7 @@
 
   function renderFooter(container) {
     if (!container) return;
+    container.dataset.annotationTarget = 'page-footer';
     const small = document.createElement('small');
     small.append(document.createTextNode(SITE_CONTENT.footer.heading), document.createElement('br'));
     SITE_CONTENT.footer.authors.forEach((author, index) => {
@@ -414,6 +417,8 @@
       if (!section.hideHeading) {
         const heading = document.createElement('div');
         heading.className = 'side-title';
+        heading.dataset.annotationTarget = 'section-heading';
+        heading.dataset.annotationQuestion = validItems[0].id;
         heading.textContent = section.section;
         fragment.appendChild(heading);
       }

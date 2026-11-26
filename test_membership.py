@@ -174,6 +174,36 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(fetched.mimetype, "image/png")
         self.assertEqual(fetched.data, image)
         self.assertEqual(fetched.headers["Cache-Control"], "no-store")
+        self.client = author
+        self.assertEqual(save(target="page-discord").status_code, 400)
+        self.assertEqual(save(view="faq:home", target="page-discord",
+                              draft="00000000-0000-4000-8000-000000000002").status_code, 201)
+        self.assertEqual(save(view="faq:o-czym-rozmawiacie", target="faq:o-czym-rozmawiacie:question",
+                              draft="00000000-0000-4000-8000-000000000003").status_code, 201)
+        region = "region|faq:home/page-discord|faq:o-czym-rozmawiacie/faq:o-czym-rozmawiacie:question"
+        self.assertEqual(save(target=region,
+                              draft="00000000-0000-4000-8000-000000000004").status_code, 201)
+        original_region = "region|@desktop/main/180,200,9900,8150|" + region.removeprefix("region|")
+        self.assertEqual(save(target=original_region,
+                              draft="00000000-0000-4000-8000-000000000006").status_code, 201)
+        self.assertEqual(save(target="region|@desktop/main/0,0,10001,10000|faq:home/page-discord").status_code, 400)
+        self.assertEqual(save(target="region|@desktop/main/0,0,10000,10000").status_code, 400)
+        self.assertEqual(save(target="region|faq:home/unknown").status_code, 400)
+        self.assertEqual(save(target="region|panel:access/access-title").status_code, 400)
+        self.assertEqual(save(target="region|faq:home/page-discord|faq:home/page-discord").status_code, 400)
+        self.assertEqual(save(view="panel:access", target="region|panel:access/access-title").status_code, 403)
+        space = "space|main|4000,5500,8000,8700"
+        self.assertEqual(save(target=space, draft="00000000-0000-4000-8000-000000000005").status_code, 201)
+        self.assertEqual(save(target="space|main|8000,5500,4000,8700").status_code, 400)
+        self.assertEqual(save(target="space|page|0,0,10001,10000").status_code, 400)
+        self.assertEqual(save(target="space|other|0,0,10000,10000").status_code, 400)
+        self.assertEqual(save(view="panel:access", target=space).status_code, 403)
+        paths = {entry["target"]: entry["path"] for entry in self.response(api + "&zakres=faq").get_json()["items"]}
+        self.assertEqual(paths["page-discord"], "/")
+        self.assertEqual(paths["faq:o-czym-rozmawiacie:question"], "/#o-czym-rozmawiacie")
+        self.assertEqual(paths[region], "/#kim-jestesmy")
+        self.assertEqual(paths[original_region], "/#kim-jestesmy")
+        self.assertEqual(paths[space], "/#kim-jestesmy")
         self.client = self.app.test_client()
         self.assertEqual(self.response(api + "&zakres=faq").status_code, 401)
         self.assertEqual(self.response(image_url).status_code, 401)
@@ -245,7 +275,7 @@ class MembershipTests(unittest.TestCase):
         with closing(sqlite3.connect(self.path)) as connection, connection:
             connection.execute(
                 "INSERT INTO annotation_replies (annotation_id,author_id,draft_key,comment,created_at) "
-                "VALUES (1,1,'draft','Wybrana odpowiedź',2), (1,2,'other','Pominięta odpowiedź',3)"
+                "VALUES (1,1,'draft','Wybrana odpowiedź',2), (1,2,'other','Pominięta odpowiedź help@gmail.com',3)"
             )
             connection.execute("INSERT INTO annotation_closures VALUES (1,1,4)")
         self.assertEqual(export(reader, "preview", **fields).status_code, 403)
@@ -257,6 +287,9 @@ class MembershipTests(unittest.TestCase):
         self.assertNotIn("<div>", preview["body"])
         self.assertIn("Wybrana odpowiedź", preview["body"])
         self.assertNotIn("Pominięta odpowiedź", preview["body"])
+        self.assertEqual(preview["draft"]["summary"], "Prywatny namiar [ukryto] z <div> i @tester")
+        self.assertIsNone(preview["draft"]["title"])
+        self.assertEqual(preview["draft"]["replies"][1]["comment"], "Pominięta odpowiedź [ukryto]")
         self.assertEqual(export(author, "send", proof=preview["proof"]).status_code, 503)
         with closing(sqlite3.connect(self.path)) as connection:
             self.assertEqual(connection.execute("SELECT count(*) FROM annotation_publications").fetchone()[0], 0)

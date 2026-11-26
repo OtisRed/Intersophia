@@ -29,11 +29,19 @@ INVITATION_SCOPE = "(? OR issuer.user_id=?)"
 ANNOTATION_IMAGE_LIMIT = 512 * 1024
 ANNOTATION_KEY = re.compile(r"[a-z0-9-]{1,100}")
 ANNOTATION_DRAFT = re.compile(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}")
+ANNOTATION_RECT_COORDINATES = r"([0-9]{1,5}),([0-9]{1,5}),([0-9]{1,5}),([0-9]{1,5})"
+ANNOTATION_SPACE = re.compile(r"space\|(?:main|header|page)\|" + ANNOTATION_RECT_COORDINATES)
+ANNOTATION_REGION_RECT = re.compile(r"@(?:desktop|mobile)/(?:main|header|page)/" + ANNOTATION_RECT_COORDINATES)
+FAQ_PAGE_TARGETS = {"page-facebook", "page-messenger", "page-instagram", "page-onenote",
+                    "page-discord", "page-login", "page-footer"}
+PANEL_HEADER_TARGETS = {"panel-home", "panel-logout"}
 PANEL_ANNOTATION_TARGETS = {
-    "panel:welcome": {"welcome-title", "community-rules"},
+    "panel:welcome": {"welcome-title", "community-rules", "welcome-acknowledge"},
     "panel:invites": {"member-panel", "member-nav", "invite-title", "invite-email-label",
-                      "invite-create", "invitation-list", "invitation-filter"},
-    "panel:access": {"member-panel", "member-nav", "access-title", "member-filter"},
+                      "invite-create", "invitation-list", "invitation-filter", "member-nav-invites",
+                      "member-nav-access", "invite-status-label", "invite-filter-submit"},
+    "panel:access": {"member-panel", "member-nav", "access-title", "member-filter",
+                     "member-nav-invites", "member-nav-access", "member-filter-active", "member-filter-removed"},
 }
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -128,13 +136,41 @@ def digest(token):
 
 def annotation_path(view, target):
     if view in PANEL_ANNOTATION_TARGETS:
-        if target in PANEL_ANNOTATION_TARGETS[view]:
+        if target in PANEL_HEADER_TARGETS or target in PANEL_ANNOTATION_TARGETS[view]:
             return "/panel?widok=dostep" if view == "panel:access" else "/panel"
         return None
     if view.startswith("faq:") and ANNOTATION_KEY.fullmatch(question := view[4:]):
-        if target in {"brand", "resources", f"faq:{question}:question", f"faq:{question}:answer"}:
+        if question == "home" and target in FAQ_PAGE_TARGETS:
+            return "/"
+        if target in {"brand", "resources", "section-heading", f"faq:{question}:question", f"faq:{question}:answer"}:
             return "/" if question == "home" else f"/#{question}"
     return None
+
+
+def valid_annotation_rectangle(match):
+    if not match:
+        return False
+    left, top, right, bottom = map(int, match.groups())
+    return 0 <= left < right <= 10000 and 0 <= top < bottom <= 10000
+
+
+def annotation_region_path(view, target):
+    path = annotation_path(view, "brand" if view.startswith("faq:") else "panel-home")
+    if target.startswith("space|"):
+        return path if valid_annotation_rectangle(ANNOTATION_SPACE.fullmatch(target)) else None
+    if not target.startswith("region|"):
+        return annotation_path(view, target)
+    parts = target[7:].split("|")
+    if parts[0].startswith("@") and not valid_annotation_rectangle(ANNOTATION_REGION_RECT.fullmatch(parts.pop(0))):
+        return None
+    if not 1 <= len(parts) <= 24 or len(set(parts)) != len(parts):
+        return None
+    for part in parts:
+        anchor_view, _, anchor_target = part.partition("/")
+        same_scope = (anchor_view.startswith("faq:") if view.startswith("faq:") else anchor_view == view)
+        if not same_scope or not annotation_path(anchor_view, anchor_target):
+            return None
+    return path
 
 
 def valid_annotation_image(image):
@@ -274,8 +310,11 @@ def create_app(settings=None):
         return Response(row["image"], mimetype="image/png")
 
     def export_preview(connection, annotation, user):
-        title = " ".join(redact(request.form.get("title", "")).split())
-        summary = public_text(request.form.get("summary", "").strip())
+        raw_title = request.form.get("title", "")
+        raw_summary = request.form.get("summary", "")
+        clean_title, clean_summary = redact(raw_title), redact(raw_summary)
+        title = " ".join(clean_title.split())
+        summary = public_text(clean_summary.strip())
         chosen = set(request.form.getlist("reply", type=int))
         replies = connection.execute(
             "SELECT id,comment FROM annotation_replies WHERE annotation_id=? ORDER BY id", (annotation["id"],)
@@ -292,7 +331,12 @@ def create_app(settings=None):
         if len(body) > 12000:
             abort(400)
         payload = {"annotation_id": annotation["id"], "actor_id": user["id"], "title": title, "body": body}
-        return {"title": title, "body": body, "proof": preview_signer.dumps(payload)}
+        draft = {
+            "title": clean_title if clean_title != raw_title else None,
+            "summary": clean_summary if clean_summary != raw_summary else None,
+            "replies": [{"id": reply["id"], "comment": redact(reply["comment"])} for reply in replies],
+        }
+        return {"title": title, "body": body, "proof": preview_signer.dumps(payload), "draft": draft}
 
     def annotation_export(connection, annotation_id):
         request.max_content_length = 64 * 1024
@@ -437,7 +481,7 @@ def create_app(settings=None):
             require_csrf()
             view = request.form.get("view", "")
             target = request.form.get("target", "")
-            path = annotation_path(view, target)
+            path = annotation_region_path(view, target) if len(target) <= 4096 else None
             comment = request.form.get("comment", "").strip()
             draft = request.form.get("draft", "")
             uploaded = request.files.get("image")
