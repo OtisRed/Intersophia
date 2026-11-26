@@ -216,15 +216,21 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .member-invite-result{margin-top:24px;border-top:1px solid var(--border);padding-top:20px}
 .member-invite-result .membership-google{margin-top:0;max-width:230px}
 .member-invite-result #copy-result{margin-top:8px}
-.member-content label[for="topic-description"]{margin-top:12px}
-#topic-description{resize:vertical}
-.member-topics{margin-top:24px;padding-top:18px;border-top:1px solid var(--border)}
-.member-topics h3{margin:0 0 12px;font-size:1.1rem}
+.topics-layout{display:grid;gap:16px;min-width:0}
+.topic-submit summary{cursor:pointer;font-weight:750;font-size:1.1rem}
+.topic-submit[open] summary{margin-bottom:16px}
+.topics-layout label[for$="-description"]{margin-top:12px}
+.topics-layout textarea{resize:vertical}
 .member-topics ol{margin:0;padding:0;list-style:none}
 .member-topics li{padding:14px 0;border-top:1px solid var(--border);overflow-wrap:anywhere}
-.member-topics h4{margin:0 0 4px;font-size:1rem}
+.member-topics li:last-child{padding-bottom:0}
+.member-topics h3{margin:0 0 4px;font-size:1rem}
 .member-topics .topic-description{white-space:pre-wrap}
 .member-topics .topic-author{margin-top:6px;color:var(--muted);font-size:.9rem}
+.topic-owner-action{margin-top:12px}
+.topic-owner-action summary{width:fit-content;cursor:pointer;color:var(--blue)}
+.topic-owner-action form{margin:10px 0 4px}
+.topic-owner-action .topic-vote{margin-top:10px}
 .topic-votes{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px}
 .topic-vote-count{font-weight:700}
 .topic-vote.is-liked{border-color:var(--accent);color:var(--blue)}
