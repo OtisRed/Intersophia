@@ -361,6 +361,52 @@ class MembershipTests(unittest.TestCase):
                                                  "csrf": csrf or self.csrf("/panel")},
                                 base_url=self.base)
 
+    def test_member_topics_creation_voting_and_order(self):
+        path = "/panel?widok=tematy"
+        self.assertEqual(self.response(path).location, "/logowanie")
+        self.assertEqual(self.client.post(path, data={"action": "like-topic"}, base_url=self.base).location,
+                         "/logowanie")
+        author, reader = self.access_accounts()
+        self.client = author
+        self.assertIn('aria-current="page">Tematy', self.response(path).get_data(as_text=True))
+        self.assertIn("Brak zgłoszonych tematów.", self.response(path).get_data(as_text=True))
+
+        def change(client, action, **fields):
+            self.client = client
+            return client.post(path, data={"csrf": self.csrf(path), "action": action} | fields, base_url=self.base)
+
+        def draft():
+            return re.search(r'name="draft" value="([^"]+)"', self.response(path).get_data(as_text=True))[1]
+
+        first = {"draft": draft(), "title": "Pierwszy temat", "description": "Krótki opis"}
+        self.assertEqual(change(author, "create-topic", **(first | {"title": "  "})).status_code, 400)
+        self.assertEqual(change(author, "create-topic", **(first | {"description": "x" * 1201})).status_code, 400)
+        for _ in range(2):
+            self.assertEqual(change(author, "create-topic", **first).location, path)
+        second = first | {"draft": draft(), "title": "Nowszy temat"}
+        self.assertEqual(change(author, "create-topic", **second).location, path)
+        page = self.response(path).get_data(as_text=True)
+        self.assertLess(page.index("<h4>Nowszy temat</h4>"), page.index("<h4>Pierwszy temat</h4>"))
+        self.assertEqual(page.count("<h4>Pierwszy temat</h4>"), 1)
+        self.assertIn("Zgłasza Ania Nowak", page)
+
+        self.assertEqual(change(reader, "like-topic", topic_id=1, csrf="wrong").status_code, 400)
+        self.assertEqual(change(reader, "like-topic", topic_id=99).status_code, 404)
+        for voter in (reader, reader, author):
+            self.assertEqual(change(voter, "like-topic", topic_id=1).location, path)
+        page = self.response(path).get_data(as_text=True)
+        self.assertLess(page.index("<h4>Pierwszy temat</h4>"), page.index("<h4>Nowszy temat</h4>"))
+        self.assertIn("Polubienia: 2", page)
+        self.assertIn("Cofnij polubienie: Pierwszy temat", page)
+        for _ in range(2):
+            self.assertEqual(change(reader, "unlike-topic", topic_id=1).location, path)
+        page = self.response(path).get_data(as_text=True)
+        self.assertIn("Polubienia: 1", page)
+        self.assertIn('aria-label="Polub: Pierwszy temat"', page)
+        self.assertEqual(change(author, "unlike-topic", topic_id=1).location, path)
+        page = self.response(path).get_data(as_text=True)
+        self.assertLess(page.index("<h4>Nowszy temat</h4>"), page.index("<h4>Pierwszy temat</h4>"))
+
     def test_member_can_issue_invite_matching_one_gmail(self):
         self.member_ready()
         page = self.response("/panel").get_data(as_text=True)

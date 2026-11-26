@@ -35,6 +35,8 @@ ANNOTATION_REGION_RECT = re.compile(r"@(?:desktop|mobile)/(?:main|header|page)/"
 FAQ_PAGE_TARGETS = {"page-facebook", "page-messenger", "page-instagram", "page-onenote",
                     "page-discord", "page-login", "page-footer"}
 PANEL_HEADER_TARGETS = {"panel-home", "panel-logout"}
+TOPIC_TITLE_LIMIT = 120
+TOPIC_DESCRIPTION_LIMIT = 1200
 PANEL_ANNOTATION_TARGETS = {
     "panel:welcome": {"welcome-title", "community-rules", "welcome-acknowledge"},
     "panel:invites": {"member-panel", "member-nav", "invite-title", "invite-email-label",
@@ -42,7 +44,10 @@ PANEL_ANNOTATION_TARGETS = {
                       "member-nav-access", "invite-status-label", "invite-filter-submit"},
     "panel:access": {"member-panel", "member-nav", "access-title", "member-filter",
                      "member-nav-invites", "member-nav-access", "member-filter-active", "member-filter-removed"},
+    "panel:topics": {"member-panel", "member-nav", "member-nav-invites", "member-nav-access",
+                     "topics-title", "topic-title-label", "topic-description-label", "topic-create", "topic-list"},
 }
+PANEL_ANNOTATION_PATHS = {"panel:access": "/panel?widok=dostep", "panel:topics": "/panel?widok=tematy"}
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
@@ -117,6 +122,20 @@ END;
 CREATE TABLE IF NOT EXISTS welcome_acknowledgements (
     user_id INTEGER PRIMARY KEY REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS meeting_topics (
+    id INTEGER PRIMARY KEY,
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    draft_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(author_id, draft_key)
+);
+CREATE TABLE IF NOT EXISTS meeting_topic_likes (
+    topic_id INTEGER NOT NULL REFERENCES meeting_topics(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    PRIMARY KEY(topic_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS declarations (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
     name TEXT NOT NULL,
@@ -136,8 +155,10 @@ def digest(token):
 
 def annotation_path(view, target):
     if view in PANEL_ANNOTATION_TARGETS:
-        if target in PANEL_HEADER_TARGETS or target in PANEL_ANNOTATION_TARGETS[view]:
-            return "/panel?widok=dostep" if view == "panel:access" else "/panel"
+        if target in PANEL_HEADER_TARGETS or target in PANEL_ANNOTATION_TARGETS[view] or (
+            view != "panel:welcome" and target == "member-nav-topics"
+        ):
+            return PANEL_ANNOTATION_PATHS.get(view, "/panel")
         return None
     if view.startswith("faq:") and ANNOTATION_KEY.fullmatch(question := view[4:]):
         if question == "home" and target in FAQ_PAGE_TARGETS:
@@ -682,6 +703,66 @@ def create_app(settings=None):
             )
         return redirect(url_for("panel", widok="dostep"), code=303)
 
+    def topics_panel(connection, user):
+        topics_url = url_for("panel", widok="tematy")
+
+        def view(error=None, title="", description="", draft=None):
+            topics = connection.execute(
+                "SELECT t.id, t.title, t.description, COALESCE(NULLIF(u.name,''),'Członek SKN') AS author, "
+                "COUNT(l.user_id) AS likes, COALESCE(MAX(l.user_id=?), 0) AS liked "
+                "FROM meeting_topics t JOIN users u ON u.id=t.author_id "
+                "LEFT JOIN meeting_topic_likes l ON l.topic_id=t.id "
+                "GROUP BY t.id ORDER BY likes DESC, t.id DESC",
+                (user["id"],),
+            ).fetchall()
+            return render_template("member.html", topics_view=True, user=user, role_labels=ROLE_LABELS,
+                                   csrf=csrf_token(), topics=topics, topic_error=error, topic_title=title,
+                                   topic_description=description, topic_draft=draft or secrets.token_urlsafe(32),
+                                   topic_title_limit=TOPIC_TITLE_LIMIT,
+                                   topic_description_limit=TOPIC_DESCRIPTION_LIMIT), 400 if error else 200
+
+        if request.method == "GET":
+            return view()
+
+        require_csrf()
+        action = request.form.get("action")
+        if action == "create-topic":
+            title = request.form.get("title", "").strip()
+            description = request.form.get("description", "").strip()
+            draft = request.form.get("draft", "")
+            if not TOKEN.fullmatch(draft):
+                abort(400)
+            if not 0 < len(title) <= TOPIC_TITLE_LIMIT or not 0 < len(description) <= TOPIC_DESCRIPTION_LIMIT:
+                return view("Podaj tytuł i krótki opis w podanych limitach.",
+                            title[:TOPIC_TITLE_LIMIT], description[:TOPIC_DESCRIPTION_LIMIT], draft)
+        elif action in {"like-topic", "unlike-topic"}:
+            topic_id = request.form.get("topic_id", type=int)
+            if not topic_id or not 0 < topic_id <= 2**63 - 1:
+                abort(400)
+        else:
+            abort(400)
+
+        connection.execute("BEGIN IMMEDIATE")
+        with connection:
+            actor = logged_in()
+            if actor is None:
+                return redirect(url_for("login"), code=303)
+            if action == "create-topic":
+                connection.execute(
+                    "INSERT INTO meeting_topics (author_id,draft_key,title,description,created_at) VALUES (?,?,?,?,?) "
+                    "ON CONFLICT(author_id,draft_key) DO NOTHING",
+                    (actor["id"], draft, title, description, int(time.time())),
+                )
+            else:
+                if connection.execute("SELECT 1 FROM meeting_topics WHERE id=?", (topic_id,)).fetchone() is None:
+                    abort(404)
+                vote = (topic_id, actor["id"])
+                if action == "like-topic":
+                    connection.execute("INSERT INTO meeting_topic_likes VALUES (?,?) ON CONFLICT DO NOTHING", vote)
+                else:
+                    connection.execute("DELETE FROM meeting_topic_likes WHERE topic_id=? AND user_id=?", vote)
+        return redirect(topics_url, code=303)
+
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
         if request.method == "GET" and "publiczny_wycinek" in request.args:
@@ -704,6 +785,10 @@ def create_app(settings=None):
         acknowledged = connection.execute(
             "SELECT 1 FROM welcome_acknowledgements WHERE user_id=?", (user["id"],)
         ).fetchone()
+        if request.args.get("widok") == "tematy":
+            if acknowledged:
+                return topics_panel(connection, user)
+            return redirect(url_for("panel"), code=303)
 
         def view(error=None, link=None, email="", status=200):
             accounts = ()
@@ -790,6 +875,8 @@ def create_app(settings=None):
         db().execute("SELECT id FROM annotation_replies LIMIT 1").fetchone()
         db().execute("SELECT annotation_id FROM annotation_closures LIMIT 1").fetchone()
         db().execute("SELECT annotation_id FROM annotation_publications LIMIT 1").fetchone()
+        db().execute("SELECT id FROM meeting_topics LIMIT 1").fetchone()
+        db().execute("SELECT topic_id FROM meeting_topic_likes LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 

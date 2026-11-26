@@ -120,7 +120,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .membership-google{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:22px;padding:10px 12px;background:#fff;border:1px solid #747775;color:#1f1f1f;font:500 14px/20px "Google Sans",Arial,sans-serif}.membership-google img{flex:none;object-fit:contain}
 .membership-send{background:var(--accent);color:#14110d}
 .membership-card label{display:block;margin-bottom:15px;font-weight:650}
-.membership-card input:not([type=hidden]){display:block;width:100%;margin-top:5px;padding:10px 12px;border-radius:8px;background:#08131e;border:1px solid var(--border);color:var(--text);font:inherit;font-weight:450}
+.membership-card :is(input:not([type=hidden]),textarea){display:block;width:100%;margin-top:5px;padding:10px 12px;border-radius:8px;background:#08131e;border:1px solid var(--border);color:var(--text);font:inherit;font-weight:450}
 .membership-later{margin-top:15px;padding:4px 0;background:none;border:0;font:inherit;cursor:pointer;text-decoration:underline}
 .membership-card .membership-status{display:inline-block;background:#3a291e;color:#ffbe91;padding:3px 9px;border-radius:6px;font-size:.85rem;font-weight:700;margin-top:14px}
 .membership-card .membership-error{margin:14px 0;padding:10px 12px;border-left:3px solid var(--accent);color:#ffd1b4}
@@ -176,7 +176,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .member-accounts span { display:block; }
 .member-accounts p,.member-accounts span { color:var(--muted); }
 :is(.member-accounts,.member-invitations) form { display:flex;flex-wrap:wrap;gap:8px;margin-top:10px; }
-:is(.member-accounts,.member-invitations) button {
+:is(.member-accounts,.member-invitations) button,.topic-vote {
   padding:8px 12px;
   border:1px solid var(--border);
   border-radius:8px;
@@ -185,7 +185,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
   font:inherit;
   cursor:pointer;
 }
-:is(.member-accounts,.member-invitations) button:hover { border-color:var(--accent); }
+:is(.member-accounts,.member-invitations) button:hover,.topic-vote:hover { border-color:var(--accent); }
 .member-account-filter { display:flex;gap:12px;margin-bottom:16px; }
 .member-account-filter a { color:var(--blue); }
 .member-account-filter a[aria-current="page"] { font-weight:750;color:var(--text); }
@@ -216,4 +216,16 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .member-invite-result{margin-top:24px;border-top:1px solid var(--border);padding-top:20px}
 .member-invite-result .membership-google{margin-top:0;max-width:230px}
 .member-invite-result #copy-result{margin-top:8px}
+.member-content label[for="topic-description"]{margin-top:12px}
+#topic-description{resize:vertical}
+.member-topics{margin-top:24px;padding-top:18px;border-top:1px solid var(--border)}
+.member-topics h3{margin:0 0 12px;font-size:1.1rem}
+.member-topics ol{margin:0;padding:0;list-style:none}
+.member-topics li{padding:14px 0;border-top:1px solid var(--border);overflow-wrap:anywhere}
+.member-topics h4{margin:0 0 4px;font-size:1rem}
+.member-topics .topic-description{white-space:pre-wrap}
+.member-topics .topic-author{margin-top:6px;color:var(--muted);font-size:.9rem}
+.topic-votes{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px}
+.topic-vote-count{font-weight:700}
+.topic-vote.is-liked{border-color:var(--accent);color:var(--blue)}
 @media(max-width:650px){.member-layout{grid-template-columns:minmax(0,1fr)}}
