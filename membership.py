@@ -145,6 +145,11 @@ CREATE TABLE IF NOT EXISTS meeting_topic_states (
     topic_id INTEGER PRIMARY KEY REFERENCES meeting_topics(id) ON DELETE CASCADE,
     state TEXT NOT NULL CHECK (state IN ('hidden', 'deleted'))
 );
+CREATE TABLE IF NOT EXISTS meeting_topic_publications (
+    topic_id INTEGER PRIMARY KEY REFERENCES meeting_topics(id) ON DELETE CASCADE,
+    published_by INTEGER NOT NULL REFERENCES users(id),
+    published_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS meeting_topic_attachments (
     topic_id INTEGER NOT NULL REFERENCES meeting_topics(id) ON DELETE CASCADE,
     kind TEXT NOT NULL CHECK (kind IN ('reading', 'photo')),
@@ -725,8 +730,13 @@ def create_app(settings=None):
 
     def topics_panel(connection, user):
         topics_url = url_for("panel", widok="tematy")
-        hidden_view = request.args.get("stan") == "ukryte"
-        return_url = url_for("panel", widok="tematy", stan="ukryte") if hidden_view else topics_url
+        published_url = url_for("panel", widok="tematy", stan="opublikowane")
+        view_state = {"ukryte": "hidden", "opublikowane": "published"}.get(request.args.get("stan"), "active")
+        return_url = {
+            "active": topics_url,
+            "hidden": url_for("panel", widok="tematy", stan="ukryte"),
+            "published": published_url,
+        }[view_state]
         moderator = user["role"] in TOPIC_MODERATORS
 
         def view(error=None, title="", description="", draft=None, editing=None, reading_url=""):
@@ -738,17 +748,19 @@ def create_app(settings=None):
                 "FROM meeting_topics t JOIN users u ON u.id=t.author_id "
                 "LEFT JOIN meeting_topic_likes l ON l.topic_id=t.id "
                 "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id "
+                "LEFT JOIN meeting_topic_publications p ON p.topic_id=t.id "
                 "LEFT JOIN meeting_topic_attachments reading ON reading.topic_id=t.id AND reading.kind='reading' "
                 "LEFT JOIN meeting_topic_attachments photo ON photo.topic_id=t.id AND photo.kind='photo' "
-                "WHERE (?=0 AND s.state IS NULL) OR (? AND s.state='hidden' AND (? OR t.author_id=?)) "
-                "GROUP BY t.id ORDER BY likes DESC, t.id DESC",
-                (user["id"], hidden_view, hidden_view, moderator, user["id"]),
+                "WHERE COALESCE(s.state, CASE WHEN p.topic_id IS NULL THEN 'active' ELSE 'published' END)=? "
+                "AND (?!='hidden' OR ? OR t.author_id=?) "
+                "GROUP BY t.id ORDER BY p.published_at DESC, likes DESC, t.id DESC",
+                (user["id"], view_state, view_state, moderator, user["id"]),
             ).fetchall()
             return render_template("member.html", topics_view=True, user=user, role_labels=ROLE_LABELS,
                                    csrf=csrf_token(), topics=topics, topic_error=error, topic_title=title,
                                    topic_description=description, topic_draft=draft or secrets.token_urlsafe(32),
-                                   topic_editing=editing, topic_hidden_view=hidden_view, topic_moderator=moderator,
-                                   topics_url=topics_url, topics_return_url=return_url,
+                                   topic_editing=editing, topic_view_state=view_state, topic_moderator=moderator,
+                                   topics_url=topics_url, topics_return_url=return_url, topics_published_url=published_url,
                                    topic_reading_url=reading_url, topic_link_limit=TOPIC_LINK_LIMIT,
                                    topic_file_limit=TOPIC_FILE_LIMIT_MB,
                                    topic_title_limit=TOPIC_TITLE_LIMIT,
@@ -777,7 +789,7 @@ def create_app(settings=None):
         request.max_content_length = TOPIC_UPLOAD_LIMIT
         require_csrf()
         action = request.form.get("action")
-        if action not in {"create-topic", "edit-topic", "delete-topic", "hide-topic", "show-topic",
+        if action not in {"create-topic", "edit-topic", "delete-topic", "hide-topic", "show-topic", "publish-topic",
                           "like-topic", "unlike-topic"}:
             abort(400)
         topic_id = request.form.get("topic_id", type=int)
@@ -785,10 +797,12 @@ def create_app(settings=None):
             abort(400)
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
+
         def get_topic():
             topic = connection.execute(
-                "SELECT t.author_id, s.state FROM meeting_topics t "
-                "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id WHERE t.id=?", (topic_id,),
+                "SELECT t.author_id, s.state, p.topic_id IS NOT NULL AS published FROM meeting_topics t "
+                "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id "
+                "LEFT JOIN meeting_topic_publications p ON p.topic_id=t.id WHERE t.id=?", (topic_id,),
             ).fetchone()
             if topic is None or topic["state"] == "deleted":
                 abort(404)
@@ -799,8 +813,12 @@ def create_app(settings=None):
             draft = request.form.get("draft", "")
             if not TOKEN.fullmatch(draft):
                 abort(400)
-        if action == "edit-topic" and get_topic()["author_id"] != user["id"]:
-            abort(403)
+        if action == "edit-topic":
+            topic = get_topic()
+            if topic["author_id"] != user["id"]:
+                abort(403)
+            if topic["published"]:
+                abort(409, "Temat jest już opublikowany.")
         if action in {"create-topic", "edit-topic"}:
             try:
                 if not 0 < len(title) <= TOPIC_TITLE_LIMIT or not 0 < len(description) <= TOPIC_DESCRIPTION_LIMIT:
@@ -830,8 +848,18 @@ def create_app(settings=None):
             can_moderate = actor["role"] in TOPIC_MODERATORS
             if action in {"edit-topic", "delete-topic"} and not owner:
                 abort(403)
-            if action in {"hide-topic", "show-topic"} and not can_moderate:
+            if action in {"hide-topic", "show-topic", "publish-topic"} and not can_moderate:
                 abort(403)
+            if action == "publish-topic":
+                if topic["state"] == "hidden":
+                    abort(409, "Przywróć temat przed oznaczeniem go jako opublikowany.")
+                connection.execute(
+                    "INSERT INTO meeting_topic_publications (topic_id,published_by,published_at) VALUES (?,?,?) "
+                    "ON CONFLICT(topic_id) DO NOTHING", (topic_id, actor["id"], int(time.time())),
+                )
+                return redirect(published_url, code=303)
+            if topic["published"]:
+                abort(409, "Temat jest już opublikowany.")
             if action == "edit-topic":
                 connection.execute("UPDATE meeting_topics SET title=?,description=? WHERE id=?",
                                    (title, description, topic_id))
@@ -972,6 +1000,7 @@ def create_app(settings=None):
         db().execute("SELECT id FROM meeting_topics LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_likes LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_states LIMIT 1").fetchone()
+        db().execute("SELECT topic_id FROM meeting_topic_publications LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_attachments LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}

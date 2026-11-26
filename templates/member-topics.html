@@ -44,10 +44,11 @@
     </form>
   </details>
   <section class="membership-card member-content member-topics" aria-labelledby="topic-list">
-    <h2 id="topic-list" data-annotation-target="topic-list">Zgłoszone tematy</h2>
-    <nav class="member-account-filter" aria-label="Widoczność tematów">
-      <a href="{{ topics_url }}"{% if not topic_hidden_view %} aria-current="page"{% endif %}>Widoczne</a>
-      <a href="{{ url_for('panel', widok='tematy', stan='ukryte') }}"{% if topic_hidden_view %} aria-current="page"{% endif %}>
+    <h2 id="topic-list" data-annotation-target="topic-list">{{ 'Zrealizowane / zaplanowane' if topic_view_state == 'published' else 'Zgłoszone tematy' }}</h2>
+    <nav class="member-account-filter topic-filters" aria-label="Listy tematów">
+      <a href="{{ topics_url }}"{% if topic_view_state == 'active' %} aria-current="page"{% endif %}>Widoczne</a>
+      <a href="{{ topics_published_url }}"{% if topic_view_state == 'published' %} aria-current="page"{% endif %}>Zrealizowane / zaplanowane</a>
+      <a href="{{ url_for('panel', widok='tematy', stan='ukryte') }}"{% if topic_view_state == 'hidden' %} aria-current="page"{% endif %}>
         {{ 'Ukryte' if topic_moderator else 'Moje ukryte' }}
       </a>
     </nav>
@@ -74,7 +75,7 @@
         {% endif %}
         <div class="topic-votes">
           <span class="topic-vote-count">Polubienia: {{ topic.likes }}</span>
-          {% if not topic_hidden_view %}
+          {% if topic_view_state == 'active' %}
           <form method="post" action="{{ topics_return_url }}">
             {{ topic_post(topic.id) }}
             <button type="submit" name="action" value="{{ 'unlike-topic' if topic.liked else 'like-topic' }}"
@@ -84,17 +85,27 @@
             </button>
           </form>
           {% endif %}
-          {% if topic_moderator %}
+          {% if topic_moderator and topic_view_state != 'published' %}
           <form method="post" action="{{ topics_return_url }}">
             {{ topic_post(topic.id) }}
-            <button type="submit" name="action" class="topic-vote" value="{{ 'show-topic' if topic_hidden_view else 'hide-topic' }}"
-                    aria-label="{{ 'Przywróć temat' if topic_hidden_view else 'Ukryj temat' }}: {{ topic.title }}">
-              {{ 'Przywróć' if topic_hidden_view else 'Ukryj' }}
+            <button type="submit" name="action" class="topic-vote" value="{{ 'show-topic' if topic_view_state == 'hidden' else 'hide-topic' }}"
+                    aria-label="{{ 'Przywróć temat' if topic_view_state == 'hidden' else 'Ukryj temat' }}: {{ topic.title }}">
+              {{ 'Przywróć' if topic_view_state == 'hidden' else 'Ukryj' }}
             </button>
           </form>
           {% endif %}
         </div>
-        {% if user.id == topic.author_id %}
+        {% if topic_moderator and topic_view_state == 'active' %}
+        <details class="topic-owner-action">
+          <summary>Oznacz jako opublikowany</summary>
+          <form method="post" action="{{ topics_url }}">
+            {{ topic_post(topic.id) }}
+            <p>Głosowanie się zakończy, a temat trafi do listy „Zrealizowane / zaplanowane”.</p>
+            <button type="submit" name="action" value="publish-topic" class="topic-vote">Potwierdź oznaczenie</button>
+          </form>
+        </details>
+        {% endif %}
+        {% if user.id == topic.author_id and topic_view_state != 'published' %}
         <details class="topic-owner-action"{% if topic_editing == topic.id %} open{% endif %}>
           <summary>Edytuj temat</summary>
           <form method="post" action="{{ topics_return_url }}" enctype="multipart/form-data">
@@ -119,7 +130,7 @@
       {% endfor %}
     </ol>
     {% else %}
-    <p>{{ 'Brak ukrytych tematów.' if topic_hidden_view else 'Brak zgłoszonych tematów.' }}</p>
+    <p>{{ {'hidden': 'Brak ukrytych tematów.', 'published': 'Brak opublikowanych tematów.'}.get(topic_view_state, 'Brak zgłoszonych tematów.') }}</p>
     {% endif %}
   </section>
 </div>

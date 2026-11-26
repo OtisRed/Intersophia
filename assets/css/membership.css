@@ -221,6 +221,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .topic-submit[open] summary{margin-bottom:16px}
 .topics-layout label[for$="-description"]{margin-top:12px}
 .topics-layout textarea{resize:vertical}
+.topic-filters{flex-wrap:wrap}
 .topic-uploads{min-inline-size:0;margin:14px 0 0;padding:8px 12px 12px;border:1px solid var(--border);border-radius:8px}
 .topic-uploads legend{padding:0 6px;color:var(--muted)}
 .topic-uploads label:not(:first-of-type){margin-top:10px}

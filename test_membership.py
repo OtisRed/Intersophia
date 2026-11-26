@@ -520,6 +520,54 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(author.get(reading_path, base_url=self.base).status_code, 404)
         self.assertEqual(author.get(photo_path, base_url=self.base).status_code, 404)
 
+    def test_topic_publication_archives_and_freezes_voting(self):
+        guardian, author = self.access_accounts()
+        path = "/panel?widok=tematy"
+        archive_path = path + "&stan=opublikowane"
+
+        def page(client, endpoint=path):
+            return client.get(endpoint, base_url=self.base).get_data(as_text=True)
+
+        def post(client, action, **fields):
+            self.client = client
+            return client.post(path, base_url=self.base, data={"csrf": self.csrf(path), "action": action} | fields)
+
+        for title in ("Pierwszy temat", "Drugi temat"):
+            draft = re.search(r'name="draft" value="([^"]+)"', page(author))[1]
+            self.assertEqual(post(author, "create-topic", draft=draft, title=title, description="Opis",
+                                  reading_url="https://example.org/tekst").status_code, 303)
+        self.assertNotIn('value="publish-topic"', page(author))
+        self.assertEqual(post(author, "like-topic", topic_id=1).status_code, 303)
+        self.assertEqual(post(author, "publish-topic", topic_id=1).status_code, 403)
+        self.assertIn("<h3>Pierwszy temat</h3>", page(author))
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertIn('value="publish-topic"', page(guardian))
+        self.assertEqual(post(guardian, "hide-topic", topic_id=1).status_code, 303)
+        self.assertEqual(post(guardian, "publish-topic", topic_id=1).status_code, 409)
+        self.assertEqual(post(guardian, "show-topic", topic_id=1).status_code, 303)
+        self.assertEqual(post(guardian, "publish-topic", topic_id=1, csrf="wrong").status_code, 400)
+        self.assertEqual(post(guardian, "publish-topic", topic_id=1).location, archive_path)
+        self.assertEqual(post(guardian, "publish-topic", topic_id=1).location, archive_path)
+
+        self.assertNotIn("<h3>Pierwszy temat</h3>", page(author))
+        self.assertIn("<h3>Drugi temat</h3>", page(author))
+        archive = page(author, archive_path)
+        self.assertIn("<h3>Pierwszy temat</h3>", archive)
+        self.assertIn("Polubienia: 1", archive)
+        self.assertIn("https://example.org/tekst", archive)
+        for action in ("like-topic", "unlike-topic", "edit-topic", "delete-topic"):
+            self.assertNotIn(f'value="{action}"', archive)
+            self.assertEqual(post(author, action, topic_id=1, title="Edycja", description="Zmiana").status_code, 409)
+        self.assertEqual(post(guardian, "hide-topic", topic_id=1).status_code, 409)
+        self.assertEqual(self.change_access(guardian, "grant-board", target=2).status_code, 303)
+        self.assertEqual(post(author, "publish-topic", topic_id=2).location, archive_path)
+        self.assertIn("<h3>Drugi temat</h3>", page(guardian, archive_path))
+        with closing(sqlite3.connect(self.path)) as connection:
+            publications = connection.execute(
+                "SELECT topic_id,published_by FROM meeting_topic_publications ORDER BY topic_id"
+            ).fetchall()
+            self.assertEqual(publications, [(1, 1), (2, 2)])
+
     def test_member_can_issue_invite_matching_one_gmail(self):
         self.member_ready()
         page = self.response("/panel").get_data(as_text=True)
