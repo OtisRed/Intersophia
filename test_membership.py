@@ -470,6 +470,7 @@ class MembershipTests(unittest.TestCase):
         text = {"title": "Temat z materiałem", "description": "Opis tematu"}
         photo = io.BytesIO()
         Image.new("RGB", (40, 30), "red").save(photo, "PNG")
+        photo.seek(0)
 
         def post(client, action, **fields):
             self.client = client
