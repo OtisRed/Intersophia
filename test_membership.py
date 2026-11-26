@@ -10,8 +10,11 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from PIL import Image
+
 from github_annotations import API, ISSUES, GitHubPublisher
 from membership import create_app, digest
+from topic_attachments import TOPIC_FILE_LIMIT
 
 
 class GitHubPublisherTests(unittest.TestCase):
@@ -456,6 +459,66 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(post(author, "show-topic", hidden_path, topic_id=1).status_code, 404)
         self.assertEqual(post(author, "create-topic", draft=draft, **fields).status_code, 303)
         self.assertNotIn("Temat autora", page(author))
+
+    def test_topic_attachments_replace_download_and_validate(self):
+        author, reader = self.access_accounts()
+        path = "/panel?widok=tematy"
+        reading_path = path + "&temat=1&zalacznik=reading"
+        photo_path = path + "&temat=1&zalacznik=photo"
+        draft = re.search(r'name="draft" value="([^"]+)"',
+                          author.get(path, base_url=self.base).get_data(as_text=True))[1]
+        text = {"title": "Temat z materiałem", "description": "Opis tematu"}
+        photo = io.BytesIO()
+        Image.new("RGB", (40, 30), "red").save(photo, "PNG")
+        photo.seek(0)
+
+        def post(client, action, **fields):
+            self.client = client
+            return client.post(path, base_url=self.base, content_type="multipart/form-data",
+                               data={"csrf": self.csrf(path), "action": action} | text | fields)
+
+        self.assertEqual(post(author, "create-topic", draft=draft, reading_url="javascript:alert(1)").status_code, 400)
+        wrong = post(author, "create-topic", draft=draft, reading_url="https://example.org/lektura",
+                     reading_file=(io.BytesIO(b"tekst"), "material.txt"))
+        self.assertEqual(wrong.status_code, 400)
+        self.assertEqual(post(author, "create-topic", draft=draft,
+                              photo=(io.BytesIO(b"not an image"), "photo.png")).status_code, 400)
+        self.assertEqual(post(author, "create-topic", draft=draft, reading_url="https://example.org/lektura",
+                              photo=(photo, "zapowiedz.png")).status_code, 303)
+        self.assertEqual(post(author, "create-topic", draft=draft,
+                              reading_url="https://example.org/replay").status_code, 303)
+        page = reader.get(path, base_url=self.base).get_data(as_text=True)
+        self.assertIn("https://example.org/lektura", page)
+        self.assertNotIn("https://example.org/replay", page)
+        self.assertEqual(page.count("<h3>Temat z materiałem</h3>"), 1)
+        public = self.app.test_client().get(photo_path, base_url=self.base)
+        self.assertEqual(public.location, "/logowanie")
+        image_response = reader.get(photo_path, base_url=self.base)
+        self.assertEqual(image_response.mimetype, "image/jpeg")
+        self.assertEqual(image_response.headers["Cache-Control"], "no-store")
+        with Image.open(io.BytesIO(image_response.data)) as image:
+            self.assertEqual(image.size, (40, 30))
+        self.assertEqual(post(reader, "edit-topic", topic_id=1, remove_photo="1").status_code, 403)
+
+        too_large = post(author, "edit-topic", topic_id=1,
+                         reading_file=(io.BytesIO(b"x" * (TOPIC_FILE_LIMIT + 1)), "material.txt"))
+        self.assertEqual(too_large.status_code, 400)
+        pdf = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n"
+        self.assertEqual(post(author, "edit-topic", topic_id=1,
+                              reading_file=(io.BytesIO(pdf), "material.pdf")).status_code, 303)
+        material = reader.get(reading_path, base_url=self.base)
+        self.assertEqual(material.data, pdf)
+        self.assertEqual(material.mimetype, "application/pdf")
+        self.assertIn("attachment; filename=material.pdf", material.headers["Content-Disposition"])
+        self.assertEqual(reader.get(photo_path, base_url=self.base).status_code, 200)
+
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertEqual(post(author, "hide-topic", topic_id=1).status_code, 303)
+        self.assertEqual(reader.get(reading_path, base_url=self.base).status_code, 404)
+        self.assertEqual(author.get(reading_path, base_url=self.base).status_code, 200)
+        self.assertEqual(post(author, "edit-topic", topic_id=1, remove_reading="1", remove_photo="1").status_code, 303)
+        self.assertEqual(author.get(reading_path, base_url=self.base).status_code, 404)
+        self.assertEqual(author.get(photo_path, base_url=self.base).status_code, 404)
 
     def test_member_can_issue_invite_matching_one_gmail(self):
         self.member_ready()
