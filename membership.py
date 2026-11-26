@@ -6,16 +6,20 @@ import secrets
 import sqlite3
 import struct
 import time
+from io import BytesIO
 from pathlib import Path
 
 import click
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client import OAuthError
-from flask import Flask, Response, abort, g, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, g, redirect, render_template, request, send_file, session, url_for
 from itsdangerous import BadData, URLSafeTimedSerializer
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from github_annotations import REPO, GitHubPublisher, GitHubRejected, public_text, redact
+from topic_attachments import (
+    TOPIC_FILE_LIMIT_MB, TOPIC_LINK_LIMIT, TOPIC_UPLOAD_LIMIT, parse_topic_attachments, save_topic_attachments,
+)
 
 GMAIL = re.compile(r"[a-z0-9][a-z0-9.]{0,62}[a-z0-9]@gmail\.com|[a-z0-9]@gmail\.com")
 INVITES_PER_DAY = 10
@@ -140,6 +144,17 @@ CREATE TABLE IF NOT EXISTS meeting_topic_likes (
 CREATE TABLE IF NOT EXISTS meeting_topic_states (
     topic_id INTEGER PRIMARY KEY REFERENCES meeting_topics(id) ON DELETE CASCADE,
     state TEXT NOT NULL CHECK (state IN ('hidden', 'deleted'))
+);
+CREATE TABLE IF NOT EXISTS meeting_topic_attachments (
+    topic_id INTEGER NOT NULL REFERENCES meeting_topics(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('reading', 'photo')),
+    url TEXT,
+    filename TEXT,
+    media_type TEXT,
+    content BLOB,
+    PRIMARY KEY (topic_id, kind),
+    CHECK ((kind='reading' AND url IS NOT NULL AND filename IS NULL AND media_type IS NULL AND content IS NULL)
+           OR (url IS NULL AND filename IS NOT NULL AND media_type IS NOT NULL AND content IS NOT NULL))
 );
 CREATE TABLE IF NOT EXISTS declarations (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
@@ -714,14 +729,17 @@ def create_app(settings=None):
         return_url = url_for("panel", widok="tematy", stan="ukryte") if hidden_view else topics_url
         moderator = user["role"] in TOPIC_MODERATORS
 
-        def view(error=None, title="", description="", draft=None, editing=None):
+        def view(error=None, title="", description="", draft=None, editing=None, reading_url=""):
             topics = connection.execute(
                 "SELECT t.id, t.author_id, t.title, t.description, "
                 "COALESCE(NULLIF(u.name,''),'Członek SKN') AS author, "
-                "COUNT(l.user_id) AS likes, COALESCE(MAX(l.user_id=?), 0) AS liked "
+                "COUNT(l.user_id) AS likes, COALESCE(MAX(l.user_id=?), 0) AS liked, "
+                "reading.url AS reading_url, reading.filename AS reading_filename, photo.filename AS photo_filename "
                 "FROM meeting_topics t JOIN users u ON u.id=t.author_id "
                 "LEFT JOIN meeting_topic_likes l ON l.topic_id=t.id "
                 "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id "
+                "LEFT JOIN meeting_topic_attachments reading ON reading.topic_id=t.id AND reading.kind='reading' "
+                "LEFT JOIN meeting_topic_attachments photo ON photo.topic_id=t.id AND photo.kind='photo' "
                 "WHERE (?=0 AND s.state IS NULL) OR (? AND s.state='hidden' AND (? OR t.author_id=?)) "
                 "GROUP BY t.id ORDER BY likes DESC, t.id DESC",
                 (user["id"], hidden_view, hidden_view, moderator, user["id"]),
@@ -731,12 +749,32 @@ def create_app(settings=None):
                                    topic_description=description, topic_draft=draft or secrets.token_urlsafe(32),
                                    topic_editing=editing, topic_hidden_view=hidden_view, topic_moderator=moderator,
                                    topics_url=topics_url, topics_return_url=return_url,
+                                   topic_reading_url=reading_url, topic_link_limit=TOPIC_LINK_LIMIT,
+                                   topic_file_limit=TOPIC_FILE_LIMIT_MB,
                                    topic_title_limit=TOPIC_TITLE_LIMIT,
                                    topic_description_limit=TOPIC_DESCRIPTION_LIMIT), 400 if error else 200
 
         if request.method == "GET":
+            if "zalacznik" in request.args:
+                topic_id = request.args.get("temat", type=int)
+                kind = request.args["zalacznik"]
+                if kind not in {"reading", "photo"} or not topic_id or not 0 < topic_id <= 2**63 - 1:
+                    abort(404)
+                attachment = connection.execute(
+                    "SELECT a.filename, a.media_type, a.content FROM meeting_topic_attachments a "
+                    "JOIN meeting_topics t ON t.id=a.topic_id LEFT JOIN meeting_topic_states s ON s.topic_id=t.id "
+                    "WHERE a.topic_id=? AND a.kind=? AND a.filename IS NOT NULL "
+                    "AND (s.state IS NULL OR (s.state='hidden' AND (? OR t.author_id=?)))",
+                    (topic_id, kind, moderator, user["id"]),
+                ).fetchone()
+                if attachment is None:
+                    abort(404)
+                return send_file(BytesIO(attachment["content"]), mimetype=attachment["media_type"],
+                                 download_name=attachment["filename"], as_attachment=kind == "reading",
+                                 conditional=False)
             return view()
 
+        request.max_content_length = TOPIC_UPLOAD_LIMIT
         require_csrf()
         action = request.form.get("action")
         if action not in {"create-topic", "edit-topic", "delete-topic", "hide-topic", "show-topic",
@@ -747,14 +785,31 @@ def create_app(settings=None):
             abort(400)
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
-        valid_text = 0 < len(title) <= TOPIC_TITLE_LIMIT and 0 < len(description) <= TOPIC_DESCRIPTION_LIMIT
-        text_error = "Podaj tytuł i krótki opis w podanych limitach."
+        def get_topic():
+            topic = connection.execute(
+                "SELECT t.author_id, s.state FROM meeting_topics t "
+                "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id WHERE t.id=?", (topic_id,),
+            ).fetchone()
+            if topic is None or topic["state"] == "deleted":
+                abort(404)
+            return topic
+
+        draft = None
         if action == "create-topic":
             draft = request.form.get("draft", "")
             if not TOKEN.fullmatch(draft):
                 abort(400)
-            if not valid_text:
-                return view(text_error, title[:TOPIC_TITLE_LIMIT], description[:TOPIC_DESCRIPTION_LIMIT], draft)
+        if action == "edit-topic" and get_topic()["author_id"] != user["id"]:
+            abort(403)
+        if action in {"create-topic", "edit-topic"}:
+            try:
+                if not 0 < len(title) <= TOPIC_TITLE_LIMIT or not 0 < len(description) <= TOPIC_DESCRIPTION_LIMIT:
+                    raise ValueError("Podaj tytuł i krótki opis w podanych limitach.")
+                attachments = parse_topic_attachments(request.form, request.files)
+            except ValueError as error:
+                return view(str(error), title[:TOPIC_TITLE_LIMIT], description[:TOPIC_DESCRIPTION_LIMIT],
+                            draft, editing=topic_id if action == "edit-topic" else None,
+                            reading_url=request.form.get("reading_url", "").strip()[:TOPIC_LINK_LIMIT])
 
         connection.execute("BEGIN IMMEDIATE")
         with connection:
@@ -762,18 +817,15 @@ def create_app(settings=None):
             if actor is None:
                 return redirect(url_for("login"), code=303)
             if action == "create-topic":
-                connection.execute(
+                created = connection.execute(
                     "INSERT INTO meeting_topics (author_id,draft_key,title,description,created_at) VALUES (?,?,?,?,?) "
                     "ON CONFLICT(author_id,draft_key) DO NOTHING",
                     (actor["id"], draft, title, description, int(time.time())),
                 )
+                if created.rowcount:
+                    save_topic_attachments(connection, created.lastrowid, attachments)
                 return redirect(topics_url, code=303)
-            topic = connection.execute(
-                "SELECT t.author_id, s.state FROM meeting_topics t "
-                "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id WHERE t.id=?", (topic_id,),
-            ).fetchone()
-            if topic is None or topic["state"] == "deleted":
-                abort(404)
+            topic = get_topic()
             owner = topic["author_id"] == actor["id"]
             can_moderate = actor["role"] in TOPIC_MODERATORS
             if action in {"edit-topic", "delete-topic"} and not owner:
@@ -781,17 +833,17 @@ def create_app(settings=None):
             if action in {"hide-topic", "show-topic"} and not can_moderate:
                 abort(403)
             if action == "edit-topic":
-                if not valid_text:
-                    return view(text_error, title[:TOPIC_TITLE_LIMIT], description[:TOPIC_DESCRIPTION_LIMIT],
-                                editing=topic_id)
                 connection.execute("UPDATE meeting_topics SET title=?,description=? WHERE id=?",
                                    (title, description, topic_id))
+                save_topic_attachments(connection, topic_id, attachments)
             elif action in {"hide-topic", "delete-topic"}:
                 state = "hidden" if action == "hide-topic" else "deleted"
                 connection.execute(
                     "INSERT INTO meeting_topic_states VALUES (?,?) "
                     "ON CONFLICT(topic_id) DO UPDATE SET state=excluded.state", (topic_id, state),
                 )
+                if action == "delete-topic":
+                    connection.execute("DELETE FROM meeting_topic_attachments WHERE topic_id=?", (topic_id,))
             elif action == "show-topic":
                 connection.execute("DELETE FROM meeting_topic_states WHERE topic_id=? AND state='hidden'",
                                    (topic_id,))
@@ -920,6 +972,7 @@ def create_app(settings=None):
         db().execute("SELECT id FROM meeting_topics LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_likes LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_states LIMIT 1").fetchone()
+        db().execute("SELECT topic_id FROM meeting_topic_attachments LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 
