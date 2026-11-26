@@ -889,7 +889,7 @@ async function start() {
   }, true);
   // The FAQ listens for keyboard shortcuts on the document.
   ui.addEventListener('keydown', event => {
-    if (isActive()) event.stopPropagation();
+    event.stopPropagation();
   });
   window.addEventListener('click', event => {
     if (isPageEvent(event) && directTrigger) library.close();
