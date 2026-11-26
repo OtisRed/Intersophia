@@ -1,44 +1,89 @@
-<section class="membership-card member-content" aria-labelledby="topics-title">
-  <h2 id="topics-title" data-annotation-target="topics-title">Tematy spotkań</h2>
-  <form method="post" action="{{ url_for('panel', widok='tematy') }}">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <input type="hidden" name="draft" value="{{ topic_draft }}">
-    <label for="topic-title" data-annotation-target="topic-title-label">Tytuł tematu</label>
-    <input id="topic-title" name="title" value="{{ topic_title }}" maxlength="{{ topic_title_limit }}"
-           required data-annotation-private>
-    <label for="topic-description" data-annotation-target="topic-description-label">Krótki opis</label>
-    <textarea id="topic-description" name="description" rows="3" maxlength="{{ topic_description_limit }}"
-              required data-annotation-private>{{ topic_description }}</textarea>
-    {% if topic_error %}<p class="membership-error" role="alert">{{ topic_error }}</p>{% endif %}
-    <button class="membership-action membership-send member-generate" type="submit" name="action"
-            value="create-topic" data-annotation-target="topic-create">Zgłoś temat</button>
-  </form>
-  <section class="member-topics" aria-labelledby="topic-list">
-    <h3 id="topic-list" data-annotation-target="topic-list">Zgłoszone tematy</h3>
+{% macro topic_fields(prefix, title, description, annotate=false) %}
+  <label for="{{ prefix }}-title"{% if annotate %} data-annotation-target="topic-title-label"{% endif %}>Tytuł tematu</label>
+  <input id="{{ prefix }}-title" name="title" value="{{ title }}" maxlength="{{ topic_title_limit }}"
+         required data-annotation-private>
+  <label for="{{ prefix }}-description"{% if annotate %} data-annotation-target="topic-description-label"{% endif %}>Krótki opis</label>
+  <textarea id="{{ prefix }}-description" name="description" rows="3" maxlength="{{ topic_description_limit }}"
+            required data-annotation-private>{{ description }}</textarea>
+{% endmacro %}
+{% macro topic_post(topic_id) %}
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="topic_id" value="{{ topic_id }}">
+{% endmacro %}
+<div class="topics-layout">
+  <details class="membership-card member-content topic-submit"{% if topic_error and not topic_editing %} open{% endif %}>
+    <summary data-annotation-target="topics-title">Zgłoś temat</summary>
+    <form method="post" action="{{ topics_url }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="draft" value="{{ topic_draft }}">
+      {{ topic_fields('topic', topic_title if not topic_editing else '', topic_description if not topic_editing else '', true) }}
+      {% if topic_error and not topic_editing %}<p class="membership-error" role="alert">{{ topic_error }}</p>{% endif %}
+      <button class="membership-action membership-send member-generate" type="submit" name="action"
+              value="create-topic" data-annotation-target="topic-create">Zgłoś temat</button>
+    </form>
+  </details>
+  <section class="membership-card member-content member-topics" aria-labelledby="topic-list">
+    <h2 id="topic-list" data-annotation-target="topic-list">Zgłoszone tematy</h2>
+    <nav class="member-account-filter" aria-label="Widoczność tematów">
+      <a href="{{ topics_url }}"{% if not topic_hidden_view %} aria-current="page"{% endif %}>Widoczne</a>
+      <a href="{{ url_for('panel', widok='tematy', stan='ukryte') }}"{% if topic_hidden_view %} aria-current="page"{% endif %}>
+        {{ 'Ukryte' if topic_moderator else 'Moje ukryte' }}
+      </a>
+    </nav>
     {% if topics %}
     <ol data-annotation-private>
       {% for topic in topics %}
       <li>
-        <h4>{{ topic.title }}</h4>
+        <h3>{{ topic.title }}</h3>
         <p class="topic-description">{{ topic.description }}</p>
         <p class="topic-author">Zgłasza {{ topic.author }}</p>
         <div class="topic-votes">
           <span class="topic-vote-count">Polubienia: {{ topic.likes }}</span>
-          <form method="post" action="{{ url_for('panel', widok='tematy') }}">
-            <input type="hidden" name="csrf" value="{{ csrf }}">
-            <input type="hidden" name="topic_id" value="{{ topic.id }}">
+          {% if not topic_hidden_view %}
+          <form method="post" action="{{ topics_return_url }}">
+            {{ topic_post(topic.id) }}
             <button type="submit" name="action" value="{{ 'unlike-topic' if topic.liked else 'like-topic' }}"
                     class="topic-vote{% if topic.liked %} is-liked{% endif %}"
                     aria-label="{{ 'Cofnij polubienie' if topic.liked else 'Polub' }}: {{ topic.title }}">
               {{ 'Cofnij polubienie' if topic.liked else 'Polub' }}
             </button>
           </form>
+          {% endif %}
+          {% if topic_moderator %}
+          <form method="post" action="{{ topics_return_url }}">
+            {{ topic_post(topic.id) }}
+            <button type="submit" name="action" class="topic-vote" value="{{ 'show-topic' if topic_hidden_view else 'hide-topic' }}"
+                    aria-label="{{ 'Przywróć temat' if topic_hidden_view else 'Ukryj temat' }}: {{ topic.title }}">
+              {{ 'Przywróć' if topic_hidden_view else 'Ukryj' }}
+            </button>
+          </form>
+          {% endif %}
         </div>
+        {% if user.id == topic.author_id %}
+        <details class="topic-owner-action"{% if topic_editing == topic.id %} open{% endif %}>
+          <summary>Edytuj temat</summary>
+          <form method="post" action="{{ topics_return_url }}">
+            {{ topic_post(topic.id) }}
+            {{ topic_fields('edit-' ~ topic.id, topic_title if topic_editing == topic.id else topic.title,
+                            topic_description if topic_editing == topic.id else topic.description) }}
+            {% if topic_editing == topic.id %}<p class="membership-error" role="alert">{{ topic_error }}</p>{% endif %}
+            <button type="submit" name="action" value="edit-topic" class="topic-vote">Zapisz zmiany</button>
+          </form>
+        </details>
+        <details class="topic-owner-action">
+          <summary>Usuń temat</summary>
+          <form method="post" action="{{ topics_return_url }}">
+            {{ topic_post(topic.id) }}
+            <p>Czy na pewno chcesz usunąć ten temat?</p>
+            <button type="submit" name="action" value="delete-topic" class="topic-vote">Potwierdź usunięcie</button>
+          </form>
+        </details>
+        {% endif %}
       </li>
       {% endfor %}
     </ol>
     {% else %}
-    <p>Brak zgłoszonych tematów.</p>
+    <p>{{ 'Brak ukrytych tematów.' if topic_hidden_view else 'Brak zgłoszonych tematów.' }}</p>
     {% endif %}
   </section>
-</section>
+</div>

@@ -26,6 +26,7 @@ ROLE_LABELS = {"member": "Członek SKN", "board": "Zarząd", "guardian": "Opieku
 INVITATION_LABELS = {"active": "Aktywne", "used": "Wykorzystane", "expired": "Wygasłe", "revoked": "Cofnięte"}
 INVITATION_MANAGERS = {"board", "guardian"}
 INVITATION_SCOPE = "(? OR issuer.user_id=?)"
+TOPIC_MODERATORS = {"board", "guardian"}
 ANNOTATION_IMAGE_LIMIT = 512 * 1024
 ANNOTATION_KEY = re.compile(r"[a-z0-9-]{1,100}")
 ANNOTATION_DRAFT = re.compile(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}")
@@ -135,6 +136,10 @@ CREATE TABLE IF NOT EXISTS meeting_topic_likes (
     topic_id INTEGER NOT NULL REFERENCES meeting_topics(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id),
     PRIMARY KEY(topic_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS meeting_topic_states (
+    topic_id INTEGER PRIMARY KEY REFERENCES meeting_topics(id) ON DELETE CASCADE,
+    state TEXT NOT NULL CHECK (state IN ('hidden', 'deleted'))
 );
 CREATE TABLE IF NOT EXISTS declarations (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
@@ -705,19 +710,27 @@ def create_app(settings=None):
 
     def topics_panel(connection, user):
         topics_url = url_for("panel", widok="tematy")
+        hidden_view = request.args.get("stan") == "ukryte"
+        return_url = url_for("panel", widok="tematy", stan="ukryte") if hidden_view else topics_url
+        moderator = user["role"] in TOPIC_MODERATORS
 
-        def view(error=None, title="", description="", draft=None):
+        def view(error=None, title="", description="", draft=None, editing=None):
             topics = connection.execute(
-                "SELECT t.id, t.title, t.description, COALESCE(NULLIF(u.name,''),'Członek SKN') AS author, "
+                "SELECT t.id, t.author_id, t.title, t.description, "
+                "COALESCE(NULLIF(u.name,''),'Członek SKN') AS author, "
                 "COUNT(l.user_id) AS likes, COALESCE(MAX(l.user_id=?), 0) AS liked "
                 "FROM meeting_topics t JOIN users u ON u.id=t.author_id "
                 "LEFT JOIN meeting_topic_likes l ON l.topic_id=t.id "
+                "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id "
+                "WHERE (?=0 AND s.state IS NULL) OR (? AND s.state='hidden' AND (? OR t.author_id=?)) "
                 "GROUP BY t.id ORDER BY likes DESC, t.id DESC",
-                (user["id"],),
+                (user["id"], hidden_view, hidden_view, moderator, user["id"]),
             ).fetchall()
             return render_template("member.html", topics_view=True, user=user, role_labels=ROLE_LABELS,
                                    csrf=csrf_token(), topics=topics, topic_error=error, topic_title=title,
                                    topic_description=description, topic_draft=draft or secrets.token_urlsafe(32),
+                                   topic_editing=editing, topic_hidden_view=hidden_view, topic_moderator=moderator,
+                                   topics_url=topics_url, topics_return_url=return_url,
                                    topic_title_limit=TOPIC_TITLE_LIMIT,
                                    topic_description_limit=TOPIC_DESCRIPTION_LIMIT), 400 if error else 200
 
@@ -726,21 +739,22 @@ def create_app(settings=None):
 
         require_csrf()
         action = request.form.get("action")
+        if action not in {"create-topic", "edit-topic", "delete-topic", "hide-topic", "show-topic",
+                          "like-topic", "unlike-topic"}:
+            abort(400)
+        topic_id = request.form.get("topic_id", type=int)
+        if action != "create-topic" and not (topic_id and 0 < topic_id <= 2**63 - 1):
+            abort(400)
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        valid_text = 0 < len(title) <= TOPIC_TITLE_LIMIT and 0 < len(description) <= TOPIC_DESCRIPTION_LIMIT
+        text_error = "Podaj tytuł i krótki opis w podanych limitach."
         if action == "create-topic":
-            title = request.form.get("title", "").strip()
-            description = request.form.get("description", "").strip()
             draft = request.form.get("draft", "")
             if not TOKEN.fullmatch(draft):
                 abort(400)
-            if not 0 < len(title) <= TOPIC_TITLE_LIMIT or not 0 < len(description) <= TOPIC_DESCRIPTION_LIMIT:
-                return view("Podaj tytuł i krótki opis w podanych limitach.",
-                            title[:TOPIC_TITLE_LIMIT], description[:TOPIC_DESCRIPTION_LIMIT], draft)
-        elif action in {"like-topic", "unlike-topic"}:
-            topic_id = request.form.get("topic_id", type=int)
-            if not topic_id or not 0 < topic_id <= 2**63 - 1:
-                abort(400)
-        else:
-            abort(400)
+            if not valid_text:
+                return view(text_error, title[:TOPIC_TITLE_LIMIT], description[:TOPIC_DESCRIPTION_LIMIT], draft)
 
         connection.execute("BEGIN IMMEDIATE")
         with connection:
@@ -753,15 +767,43 @@ def create_app(settings=None):
                     "ON CONFLICT(author_id,draft_key) DO NOTHING",
                     (actor["id"], draft, title, description, int(time.time())),
                 )
+                return redirect(topics_url, code=303)
+            topic = connection.execute(
+                "SELECT t.author_id, s.state FROM meeting_topics t "
+                "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id WHERE t.id=?", (topic_id,),
+            ).fetchone()
+            if topic is None or topic["state"] == "deleted":
+                abort(404)
+            owner = topic["author_id"] == actor["id"]
+            can_moderate = actor["role"] in TOPIC_MODERATORS
+            if action in {"edit-topic", "delete-topic"} and not owner:
+                abort(403)
+            if action in {"hide-topic", "show-topic"} and not can_moderate:
+                abort(403)
+            if action == "edit-topic":
+                if not valid_text:
+                    return view(text_error, title[:TOPIC_TITLE_LIMIT], description[:TOPIC_DESCRIPTION_LIMIT],
+                                editing=topic_id)
+                connection.execute("UPDATE meeting_topics SET title=?,description=? WHERE id=?",
+                                   (title, description, topic_id))
+            elif action in {"hide-topic", "delete-topic"}:
+                state = "hidden" if action == "hide-topic" else "deleted"
+                connection.execute(
+                    "INSERT INTO meeting_topic_states VALUES (?,?) "
+                    "ON CONFLICT(topic_id) DO UPDATE SET state=excluded.state", (topic_id, state),
+                )
+            elif action == "show-topic":
+                connection.execute("DELETE FROM meeting_topic_states WHERE topic_id=? AND state='hidden'",
+                                   (topic_id,))
+            elif topic["state"] == "hidden":
+                abort(404)
+            elif action == "like-topic":
+                connection.execute("INSERT INTO meeting_topic_likes VALUES (?,?) ON CONFLICT DO NOTHING",
+                                   (topic_id, actor["id"]))
             else:
-                if connection.execute("SELECT 1 FROM meeting_topics WHERE id=?", (topic_id,)).fetchone() is None:
-                    abort(404)
-                vote = (topic_id, actor["id"])
-                if action == "like-topic":
-                    connection.execute("INSERT INTO meeting_topic_likes VALUES (?,?) ON CONFLICT DO NOTHING", vote)
-                else:
-                    connection.execute("DELETE FROM meeting_topic_likes WHERE topic_id=? AND user_id=?", vote)
-        return redirect(topics_url, code=303)
+                connection.execute("DELETE FROM meeting_topic_likes WHERE topic_id=? AND user_id=?",
+                                   (topic_id, actor["id"]))
+        return redirect(return_url, code=303)
 
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
@@ -877,6 +919,7 @@ def create_app(settings=None):
         db().execute("SELECT annotation_id FROM annotation_publications LIMIT 1").fetchone()
         db().execute("SELECT id FROM meeting_topics LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_likes LIMIT 1").fetchone()
+        db().execute("SELECT topic_id FROM meeting_topic_states LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 

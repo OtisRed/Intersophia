@@ -386,8 +386,8 @@ class MembershipTests(unittest.TestCase):
         second = first | {"draft": draft(), "title": "Nowszy temat"}
         self.assertEqual(change(author, "create-topic", **second).location, path)
         page = self.response(path).get_data(as_text=True)
-        self.assertLess(page.index("<h4>Nowszy temat</h4>"), page.index("<h4>Pierwszy temat</h4>"))
-        self.assertEqual(page.count("<h4>Pierwszy temat</h4>"), 1)
+        self.assertLess(page.index("<h3>Nowszy temat</h3>"), page.index("<h3>Pierwszy temat</h3>"))
+        self.assertEqual(page.count("<h3>Pierwszy temat</h3>"), 1)
         self.assertIn("Zgłasza Ania Nowak", page)
 
         self.assertEqual(change(reader, "like-topic", topic_id=1, csrf="wrong").status_code, 400)
@@ -395,7 +395,7 @@ class MembershipTests(unittest.TestCase):
         for voter in (reader, reader, author):
             self.assertEqual(change(voter, "like-topic", topic_id=1).location, path)
         page = self.response(path).get_data(as_text=True)
-        self.assertLess(page.index("<h4>Pierwszy temat</h4>"), page.index("<h4>Nowszy temat</h4>"))
+        self.assertLess(page.index("<h3>Pierwszy temat</h3>"), page.index("<h3>Nowszy temat</h3>"))
         self.assertIn("Polubienia: 2", page)
         self.assertIn("Cofnij polubienie: Pierwszy temat", page)
         for _ in range(2):
@@ -405,7 +405,57 @@ class MembershipTests(unittest.TestCase):
         self.assertIn('aria-label="Polub: Pierwszy temat"', page)
         self.assertEqual(change(author, "unlike-topic", topic_id=1).location, path)
         page = self.response(path).get_data(as_text=True)
-        self.assertLess(page.index("<h4>Nowszy temat</h4>"), page.index("<h4>Pierwszy temat</h4>"))
+        self.assertLess(page.index("<h3>Nowszy temat</h3>"), page.index("<h3>Pierwszy temat</h3>"))
+
+    def test_topic_owner_and_moderation_permissions(self):
+        guardian, author = self.access_accounts()
+        path = "/panel?widok=tematy"
+        hidden_path = path + "&stan=ukryte"
+
+        def post(client, action, endpoint=path, **fields):
+            self.client = client
+            return client.post(endpoint, data={"csrf": self.csrf(endpoint), "action": action} | fields,
+                               base_url=self.base)
+
+        def page(client, endpoint=path):
+            return client.get(endpoint, base_url=self.base).get_data(as_text=True)
+
+        draft = re.search(r'name="draft" value="([^"]+)"', page(author))[1]
+        fields = {"title": "Temat autora", "description": "Krótki opis"}
+        self.assertEqual(post(author, "create-topic", draft=draft, **fields).status_code, 303)
+        self.assertEqual(post(guardian, "hide-topic", topic_id=1).status_code, 403)
+        changes = {"topic_id": 1, "title": "Po edycji", "description": "Nowy opis"}
+        self.assertEqual(post(guardian, "edit-topic", **changes).status_code, 403)
+        self.assertEqual(post(guardian, "delete-topic", topic_id=1).status_code, 403)
+        rejected_edit = post(author, "edit-topic", **(changes | {"title": ""}))
+        self.assertEqual(rejected_edit.status_code, 400)
+        self.assertIn('<details class="topic-owner-action" open>', rejected_edit.get_data(as_text=True))
+        self.assertEqual(post(author, "edit-topic", **changes).status_code, 303)
+        self.assertEqual(post(guardian, "like-topic", topic_id=1).status_code, 303)
+
+        self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
+        self.assertEqual(post(guardian, "hide-topic", topic_id=1).status_code, 303)
+        self.assertNotIn("Po edycji", page(author))
+        self.assertIn("Po edycji", page(author, hidden_path))
+        self.assertEqual(post(author, "like-topic", topic_id=1).status_code, 404)
+        self.assertEqual(post(author, "show-topic", hidden_path, topic_id=1).status_code, 403)
+        self.assertEqual(post(guardian, "show-topic", hidden_path, topic_id=1).status_code, 303)
+        self.assertIn("Polubienia: 1", page(author))
+
+        self.assertEqual(self.change_access(guardian, "grant-board", target=2).status_code, 303)
+        other_draft = re.search(r'name="draft" value="([^"]+)"', page(guardian))[1]
+        self.assertEqual(post(guardian, "create-topic", draft=other_draft, title="Temat Opiekuna",
+                              description="Opis").status_code, 303)
+        self.assertEqual(post(author, "hide-topic", topic_id=2).status_code, 303)
+        self.assertIn("Temat Opiekuna", page(author, hidden_path))
+        self.assertEqual(post(author, "delete-topic", hidden_path, topic_id=2).status_code, 403)
+        self.assertEqual(post(author, "edit-topic", hidden_path, **(changes | {"topic_id": 2})).status_code, 403)
+        self.assertEqual(post(author, "delete-topic", topic_id=1).status_code, 303)
+        self.assertNotIn("Po edycji", page(guardian))
+        self.assertNotIn("Po edycji", page(guardian, hidden_path))
+        self.assertEqual(post(author, "show-topic", hidden_path, topic_id=1).status_code, 404)
+        self.assertEqual(post(author, "create-topic", draft=draft, **fields).status_code, 303)
+        self.assertNotIn("Temat autora", page(author))
 
     def test_member_can_issue_invite_matching_one_gmail(self):
         self.member_ready()
