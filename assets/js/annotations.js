@@ -539,6 +539,27 @@ async function start() {
     positionContext();
   }
 
+  function markerPosition(rect, width, height, occupied) {
+    const gap = 4;
+    const offsets = [0, -1, 1, -2, 2];
+    const left = Math.max(0, Math.min(innerWidth - width, rect.right - 14));
+    const top = Math.max(0, Math.min(innerHeight - height, rect.top - 10));
+    for (const row of offsets) {
+      for (const column of offsets) {
+        const x = left + column * (width + gap);
+        const y = top + row * (height + gap);
+        const right = x + width;
+        const bottom = y + height;
+        if (x < 0 || y < 0 || right > innerWidth || bottom > innerHeight) continue;
+        const overlaps = occupied.some(other =>
+          x < other.right + gap && right + gap > other.x &&
+          y < other.bottom + gap && bottom + gap > other.y);
+        if (!overlaps) return { x, y, right, bottom };
+      }
+    }
+    return null;
+  }
+
   function positionMarkers() {
     if (layoutFrame) return;
     layoutFrame = requestAnimationFrame(() => {
@@ -546,16 +567,20 @@ async function start() {
       if (!isActive() || !regionInput.hidden) return;
       const targets = visibleTargets().map(node => [node, visibleRect(node)]);
       const positions = new Map(targets.map(([node, rect]) => [anchorKey(contextFor(node)), rect]));
+      const occupied = [];
       for (const button of markers.children) {
         const entry = { view: button.dataset.view, target: button.dataset.target };
         const rect = isSpace(entry.target)
           ? entry.view === currentView() && projectSpace(entry.target, targets)
           : projectRegion(entry) || anchorKeys(entry).map(key => positions.get(key)).find(Boolean);
         button.hidden = !rect;
-        if (!button.hidden) {
-          button.style.left = `${Math.max(0, Math.min(innerWidth - 28, rect.right - 14))}px`;
-          button.style.top = `${Math.max(0, rect.top - 10)}px`;
-        }
+        if (!rect) continue;
+        const position = markerPosition(rect, button.offsetWidth, button.offsetHeight, occupied);
+        button.hidden = !position;
+        if (!position) continue;
+        occupied.push(position);
+        button.style.left = `${position.x}px`;
+        button.style.top = `${position.y}px`;
       }
     });
   }
@@ -563,7 +588,6 @@ async function start() {
   function renderEntries() {
     list.replaceChildren();
     markers.replaceChildren();
-    const pinned = new Map();
     entries.forEach((entry, index) => {
       const item = document.createElement('li');
       const button = document.createElement('button');
@@ -573,9 +597,6 @@ async function start() {
       item.append(button);
       list.append(item);
 
-      const pinKey = anchorKey(entry);
-      if (pinned.has(pinKey)) return;
-      pinned.set(pinKey, entry);
       const pin = document.createElement('button');
       pin.type = 'button';
       pin.hidden = true;
