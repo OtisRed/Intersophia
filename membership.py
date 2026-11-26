@@ -18,7 +18,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from github_annotations import REPO, GitHubPublisher, GitHubRejected, public_text, redact
 from topic_attachments import (
-    TOPIC_FILE_LIMIT_MB, TOPIC_LINK_LIMIT, TOPIC_UPLOAD_LIMIT, parse_topic_attachments, save_topic_attachments,
+    TOPIC_FILE_LIMIT, TOPIC_FILE_LIMIT_MB, TOPIC_LINK_LIMIT, TOPIC_UPLOAD_LIMIT, normalized_photo,
+    parse_topic_attachments, save_topic_attachments,
 )
 
 GMAIL = re.compile(r"[a-z0-9][a-z0-9.]{0,62}[a-z0-9]@gmail\.com|[a-z0-9]@gmail\.com")
@@ -42,6 +43,10 @@ FAQ_PAGE_TARGETS = {"page-facebook", "page-messenger", "page-instagram", "page-o
 PANEL_HEADER_TARGETS = {"panel-home", "panel-logout"}
 TOPIC_TITLE_LIMIT = 120
 TOPIC_DESCRIPTION_LIMIT = 1200
+PROFILE_LIMITS = {"study": 120, "interests": 300, "bio": 1000}
+MEMBER_PROFILE_VIEWS = {"czlonkowie", "profil", "moj-profil"}
+PANEL_MEMBER_TARGETS = {"member-panel", "member-nav", "member-nav-invites", "member-nav-topics",
+                        "member-nav-access", "member-nav-members", "member-nav-profile"}
 PANEL_ANNOTATION_TARGETS = {
     "panel:welcome": {"welcome-title", "community-rules", "welcome-acknowledge"},
     "panel:invites": {"member-panel", "member-nav", "invite-title", "invite-email-label",
@@ -51,14 +56,28 @@ PANEL_ANNOTATION_TARGETS = {
                      "member-nav-invites", "member-nav-access", "member-filter-active", "member-filter-removed"},
     "panel:topics": {"member-panel", "member-nav", "member-nav-invites", "member-nav-access",
                      "topics-title", "topic-title-label", "topic-description-label", "topic-create", "topic-list"},
+    "panel:members": {"members-title"},
+    "panel:profile": {"member-profile-back"},
+    "panel:profile-edit": {"my-profile-title", "profile-save"},
 }
-PANEL_ANNOTATION_PATHS = {"panel:access": "/panel?widok=dostep", "panel:topics": "/panel?widok=tematy"}
+PANEL_ANNOTATION_PATHS = {
+    "panel:access": "/panel?widok=dostep", "panel:topics": "/panel?widok=tematy",
+    "panel:members": "/panel?widok=czlonkowie", "panel:profile": "/panel?widok=profil",
+    "panel:profile-edit": "/panel?widok=moj-profil",
+}
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
     google_sub TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS member_profiles (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    study TEXT NOT NULL DEFAULT '',
+    interests TEXT NOT NULL DEFAULT '',
+    bio TEXT NOT NULL DEFAULT '',
+    photo BLOB
 );
 CREATE TABLE IF NOT EXISTS annotations (
     id INTEGER PRIMARY KEY,
@@ -181,7 +200,7 @@ def digest(token):
 def annotation_path(view, target):
     if view in PANEL_ANNOTATION_TARGETS:
         if target in PANEL_HEADER_TARGETS or target in PANEL_ANNOTATION_TARGETS[view] or (
-            view != "panel:welcome" and target == "member-nav-topics"
+            view != "panel:welcome" and target in PANEL_MEMBER_TARGETS
         ):
             return PANEL_ANNOTATION_PATHS.get(view, "/panel")
         return None
@@ -741,11 +760,12 @@ def create_app(settings=None):
 
         def view(error=None, title="", description="", draft=None, editing=None, reading_url=""):
             topics = connection.execute(
-                "SELECT t.id, t.author_id, t.title, t.description, "
+                "SELECT t.id, t.author_id, t.title, t.description, author_access.revoked_at IS NULL AS author_active, "
                 "COALESCE(NULLIF(u.name,''),'Członek SKN') AS author, "
                 "COUNT(l.user_id) AS likes, COALESCE(MAX(l.user_id=?), 0) AS liked, "
                 "reading.url AS reading_url, reading.filename AS reading_filename, photo.filename AS photo_filename "
                 "FROM meeting_topics t JOIN users u ON u.id=t.author_id "
+                "LEFT JOIN user_access author_access ON author_access.user_id=t.author_id "
                 "LEFT JOIN meeting_topic_likes l ON l.topic_id=t.id "
                 "LEFT JOIN meeting_topic_states s ON s.topic_id=t.id "
                 "LEFT JOIN meeting_topic_publications p ON p.topic_id=t.id "
@@ -885,6 +905,88 @@ def create_app(settings=None):
                                    (topic_id, actor["id"]))
         return redirect(return_url, code=303)
 
+    def member_profiles_panel(connection, user, panel_view):
+        reading = request.method in {"GET", "HEAD"}
+
+        def render(status=200, **details):
+            return render_template("member.html", member_profile_view=panel_view, user=user, role_labels=ROLE_LABELS,
+                                   csrf=csrf_token(), **details), status
+
+        if panel_view == "czlonkowie":
+            if not reading:
+                abort(405)
+            members = connection.execute(
+                "SELECT u.id, u.name, COALESCE(a.role, 'member') AS role, "
+                "p.study, p.photo IS NOT NULL AS has_photo FROM users u "
+                "LEFT JOIN user_access a ON a.user_id=u.id LEFT JOIN member_profiles p ON p.user_id=u.id "
+                "WHERE a.revoked_at IS NULL ORDER BY NULLIF(TRIM(u.name),'') IS NULL, u.name COLLATE NOCASE, u.id"
+            ).fetchall()
+            return render(members=members)
+
+        editing = panel_view == "moj-profil"
+        if editing and "czlonek" in request.args:
+            abort(400)
+        member_id = request.args.get("czlonek", type=int) if "czlonek" in request.args else user["id"]
+        if not member_id or not 0 < member_id <= 2**63 - 1:
+            abort(404)
+        profile = connection.execute(
+            "SELECT u.id, u.name, u.email, COALESCE(a.role, 'member') AS role, "
+            "COALESCE(p.study,'') AS study, COALESCE(p.interests,'') AS interests, COALESCE(p.bio,'') AS bio, "
+            "p.photo IS NOT NULL AS has_photo FROM users u LEFT JOIN user_access a ON a.user_id=u.id "
+            "LEFT JOIN member_profiles p ON p.user_id=u.id WHERE u.id=? AND a.revoked_at IS NULL",
+            (member_id,),
+        ).fetchone()
+        if profile is None:
+            abort(404)
+        if reading and not editing and request.args.get("zdjecie") == "1":
+            photo = connection.execute(
+                "SELECT p.photo FROM member_profiles p LEFT JOIN user_access a ON a.user_id=p.user_id "
+                "WHERE p.user_id=? AND a.revoked_at IS NULL AND p.photo IS NOT NULL", (member_id,),
+            ).fetchone()
+            if photo is None:
+                abort(404)
+            return send_file(BytesIO(photo["photo"]), mimetype="image/jpeg", conditional=False)
+
+        email = profile["email"] if member_id == user["id"] or user["role"] == "guardian" else None
+
+        def profile_page(status=200, error=None, values=None):
+            return render(status, profile=profile, profile_email=email, profile_error=error,
+                          profile_values=values if values is not None else profile, profile_limits=PROFILE_LIMITS,
+                          profile_file_limit=TOPIC_FILE_LIMIT_MB)
+
+        if reading:
+            return profile_page()
+        if not editing:
+            abort(405)
+
+        request.max_content_length = TOPIC_FILE_LIMIT + 64 * 1024
+        require_csrf()
+        if request.form.get("action") != "save-profile":
+            abort(400)
+        fields = {name: request.form.get(name, "").strip() for name in PROFILE_LIMITS}
+        if any(len(fields[name]) > limit for name, limit in PROFILE_LIMITS.items()):
+            values = {name: fields[name][:limit] for name, limit in PROFILE_LIMITS.items()}
+            return profile_page(400, "Skróć pola profilu do podanych limitów.", values)
+        upload = request.files.get("photo")
+        try:
+            photo = normalized_photo(upload, 640) if upload else None
+        except ValueError as error:
+            return profile_page(400, str(error), fields)
+
+        connection.execute("BEGIN IMMEDIATE")
+        with connection:
+            actor = logged_in()
+            if actor is None:
+                return redirect(url_for("login"), code=303)
+            replace_photo = bool(upload or request.form.get("remove_photo"))
+            connection.execute(
+                "INSERT INTO member_profiles(user_id,study,interests,bio,photo) VALUES (?,?,?,?,?) "
+                "ON CONFLICT(user_id) DO UPDATE SET study=excluded.study, interests=excluded.interests, "
+                "bio=excluded.bio, photo=CASE WHEN ? THEN excluded.photo ELSE member_profiles.photo END",
+                (actor["id"], fields["study"], fields["interests"], fields["bio"], photo, replace_photo),
+            )
+        return redirect(url_for("panel", widok="profil", czlonek=actor["id"]), code=303)
+
     @app.route("/panel", methods=["GET", "POST"])
     def panel():
         if request.method == "GET" and "publiczny_wycinek" in request.args:
@@ -897,7 +999,8 @@ def create_app(settings=None):
         if user is None:
             return redirect(url_for("login"), code=303)
         connection = db()
-        access_view = request.args.get("widok") == "dostep"
+        panel_view = request.args.get("widok")
+        access_view = panel_view == "dostep"
         if access_view and user["role"] != "guardian":
             abort(403)
         removed_view = request.args.get("czlonkowie") == "usunieci"
@@ -907,10 +1010,12 @@ def create_app(settings=None):
         acknowledged = connection.execute(
             "SELECT 1 FROM welcome_acknowledgements WHERE user_id=?", (user["id"],)
         ).fetchone()
-        if request.args.get("widok") == "tematy":
-            if acknowledged:
+        if panel_view == "tematy" or panel_view in MEMBER_PROFILE_VIEWS:
+            if not acknowledged:
+                return redirect(url_for("panel"), code=303)
+            if panel_view == "tematy":
                 return topics_panel(connection, user)
-            return redirect(url_for("panel"), code=303)
+            return member_profiles_panel(connection, user, panel_view)
 
         def view(error=None, link=None, email="", status=200):
             accounts = ()
@@ -1002,6 +1107,7 @@ def create_app(settings=None):
         db().execute("SELECT topic_id FROM meeting_topic_states LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_publications LIMIT 1").fetchone()
         db().execute("SELECT topic_id FROM meeting_topic_attachments LIMIT 1").fetchone()
+        db().execute("SELECT user_id FROM member_profiles LIMIT 1").fetchone()
         return {"status": "ok", "google_configured": bool(
             app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 

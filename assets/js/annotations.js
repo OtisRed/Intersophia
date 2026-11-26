@@ -1,6 +1,10 @@
 import { annotationExport } from './annotation-export.js';
 
 const sessionUrl = '/panel?widok=sesja-adnotacji';
+const panelViews = new Map([
+  ['dostep', 'access'], ['tematy', 'topics'], ['czlonkowie', 'members'],
+  ['profil', 'profile'], ['moj-profil', 'profile-edit'],
+]);
 const targetSelector = [
   '[data-annotation-target]',
   '.question[data-question-id]',
@@ -22,8 +26,7 @@ async function canAnnotate() {
 function currentPanelView() {
   if (!document.querySelector('.member-layout')) return 'welcome';
   const view = new URLSearchParams(location.search).get('widok');
-  if (view === 'dostep') return 'access';
-  return view === 'tematy' ? 'topics' : 'invites';
+  return panelViews.get(view) ?? 'invites';
 }
 
 function currentView() {

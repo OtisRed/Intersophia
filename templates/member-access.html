@@ -1,5 +1,6 @@
 <section class="membership-card member-content" aria-labelledby="access-title">
   <h2 id="access-title" data-annotation-target="access-title">Dostęp do panelu</h2>
+  <p class="membership-copy"><a href="{{ url_for('panel', widok='czlonkowie') }}">Wróć do członków</a></p>
   <nav class="member-account-filter" aria-label="Lista członków" data-annotation-target="member-filter">
     <a href="{{ url_for('panel', widok='dostep') }}" data-annotation-target="member-filter-active"{% if not removed_view %} aria-current="page"{% endif %}>Aktywni</a>
     <a href="{{ url_for('panel', widok='dostep', czlonkowie='usunieci') }}" data-annotation-target="member-filter-removed"{% if removed_view %} aria-current="page"{% endif %}>Usunięci</a>
