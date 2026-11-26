@@ -10,7 +10,51 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from github_annotations import API, ISSUES, GitHubPublisher
 from membership import create_app, digest
+
+
+class GitHubPublisherTests(unittest.TestCase):
+    @patch("github_annotations.requests.get")
+    def test_find_checks_authenticated_app_when_issue_only_has_bot_author(self, get):
+        marker = "<!-- intersophia-publication:test-marker -->"
+        publisher = GitHubPublisher("123", "456", "unused.pem")
+        publisher.headers = Mock(return_value={"Authorization": "installation"})
+        publisher.app_headers = Mock(return_value={"Authorization": "app"})
+        bot = {"type": "Bot", "login": "intersophia-dev-annotations[bot]"}
+
+        def issue(number, **fields):
+            return {"number": number, "body": marker, "user": bot} | fields
+
+        page = Mock(links={})
+        page.json.return_value = [
+            issue(1, user={"type": "User", "login": bot["login"]}),
+            issue(2, user={"type": "Bot", "login": "other[bot]"}),
+            issue(3, performed_via_github_app={"id": 789}),
+            issue(4, body=f"Copied marker: {marker}"),
+            issue(5, pull_request={}),
+            issue(6, body=f"Synthetic description\n\n{marker}"),
+        ]
+        app = Mock()
+        app.json.return_value = {"id": 123, "slug": "intersophia-dev-annotations"}
+        get.side_effect = [page, app]
+
+        self.assertEqual(publisher.find(marker, 1_700_000_000), 6)
+        self.assertEqual([call.args[0] for call in get.call_args_list], [ISSUES, f"{API}/app"])
+        self.assertEqual(get.call_args.kwargs["headers"], {"Authorization": "app"})
+
+    @patch("github_annotations.requests.get")
+    def test_find_accepts_explicit_matching_app_without_bot_lookup(self, get):
+        marker = "<!-- intersophia-publication:test-marker -->"
+        publisher = GitHubPublisher("123", "456", "unused.pem")
+        publisher.headers = Mock(return_value={})
+        publisher.app_headers = Mock()
+        get.return_value.json.return_value = [
+            {"number": 7, "body": marker, "performed_via_github_app": {"id": 123}},
+        ]
+
+        self.assertEqual(publisher.find(marker, 1_700_000_000), 7)
+        publisher.app_headers.assert_not_called()
 
 
 class MembershipTests(unittest.TestCase):

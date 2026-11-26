@@ -39,15 +39,18 @@ class GitHubPublisher:
         self.installation_id = installation_id
         self.key_file = Path(key_file)
 
-    def headers(self):
+    def app_headers(self):
         now = int(time.time())
+        bearer = jwt.encode(
+            {"alg": "RS256"}, {"iat": now - 30, "exp": now + 540, "iss": self.app_id},
+            self.key_file.read_bytes(),
+        ).decode("ascii")
+        return {"Accept": "application/vnd.github+json", "Authorization": f"Bearer {bearer}",
+                "X-GitHub-Api-Version": "2022-11-28"}
+
+    def headers(self):
         try:
-            bearer = jwt.encode(
-                {"alg": "RS256"}, {"iat": now - 30, "exp": now + 540, "iss": self.app_id},
-                self.key_file.read_bytes(),
-            ).decode("ascii")
-            headers = {"Accept": "application/vnd.github+json", "Authorization": f"Bearer {bearer}",
-                       "X-GitHub-Api-Version": "2022-11-28"}
+            headers = self.app_headers()
             response = requests.post(
                 f"{API}/app/installations/{self.installation_id}/access_tokens",
                 headers=headers, json={"repositories": ["Intersophia"], "permissions": {"issues": "write"}},
@@ -72,8 +75,17 @@ class GitHubPublisher:
             raise ValueError("Invalid issue number")
         return number
 
+    def bot_login(self):
+        response = requests.get(f"{API}/app", headers=self.app_headers(), timeout=5, allow_redirects=False)
+        response.raise_for_status()
+        app = response.json()
+        if app.get("id") != int(self.app_id) or not app.get("slug"):
+            raise ValueError("Unexpected GitHub App identity")
+        return f"{app['slug']}[bot]".casefold()
+
     def find(self, marker, requested_at):
         headers = self.headers()
+        bot_login = None
         since = datetime.fromtimestamp(requested_at - 60, timezone.utc).isoformat()
         for page in range(1, 3):
             response = requests.get(
@@ -85,9 +97,21 @@ class GitHubPublisher:
             issues = response.json()
             for issue in issues:
                 number = issue["number"]
-                if ("pull_request" not in issue and type(number) is int and number > 0
-                        and (issue.get("performed_via_github_app") or {}).get("id") == int(self.app_id)
-                        and marker in (issue.get("body") or "")):
+                if ("pull_request" in issue or type(number) is not int or number < 1
+                        or marker not in (issue.get("body") or "").splitlines()):
+                    continue
+                app = issue.get("performed_via_github_app")
+                if app:
+                    if app.get("id") == int(self.app_id):
+                        return number
+                    continue
+                # GitHub can attribute an installation's issue only to its bot account.
+                author = issue.get("user") or {}
+                if author.get("type") != "Bot":
+                    continue
+                if bot_login is None:
+                    bot_login = self.bot_login()
+                if (author.get("login") or "").casefold() == bot_login:
                     return number
             if "next" not in response.links:
                 return None
