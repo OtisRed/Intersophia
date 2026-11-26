@@ -171,12 +171,10 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .member-sidebar a[aria-current="page"] { background:#142a3a;border-left-color:var(--accent); }
 .member-sidebar a:hover { background:#1b3548; }
 .member-content.membership-card { width:100%;max-width:none;margin:0; }
-.member-accounts,.member-invitations ul { list-style:none;margin:0;padding:0; }
-:is(.member-accounts,.member-invitations) li { padding-block:14px;border-top:1px solid var(--border);overflow-wrap:anywhere; }
-.member-accounts span { display:block; }
-.member-accounts p,.member-accounts span { color:var(--muted); }
-:is(.member-accounts,.member-invitations) form { display:flex;flex-wrap:wrap;gap:8px;margin-top:10px; }
-:is(.member-accounts,.member-invitations) button,.topic-vote {
+.member-invitations ul { list-style:none;margin:0;padding:0; }
+.member-invitations li { padding-block:14px;border-top:1px solid var(--border);overflow-wrap:anywhere; }
+:is(.member-access,.member-invitations li) form,.member-invitations .invite-filter { display:flex;flex-wrap:wrap;gap:8px;margin-top:10px; }
+:is(.member-access,.invite-filter,.member-invitations li) button,.topic-vote {
   padding:8px 12px;
   border:1px solid var(--border);
   border-radius:8px;
@@ -185,15 +183,43 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
   font:inherit;
   cursor:pointer;
 }
-:is(.member-accounts,.member-invitations) button:hover,.topic-vote:hover { border-color:var(--accent); }
-.member-account-filter { display:flex;gap:12px;margin-bottom:16px; }
+:is(.member-access,.invite-filter,.member-invitations li) button:hover,.topic-vote:hover { border-color:var(--accent); }
+.member-account-filter { display:flex;gap:12px;font-size:.9rem; }
 .member-account-filter a { color:var(--blue); }
 .member-account-filter a[aria-current="page"] { font-weight:750;color:var(--text); }
 .member-remove { margin-top:12px; }
 .member-remove summary { cursor:pointer;color:var(--blue);width:fit-content; }
 .member-remove p { margin-top:8px; }
-.member-invitations { margin-top:24px;padding-top:18px;border-top:1px solid var(--border); }
-.member-invitations h3 { margin:0 0 12px;font-size:1.1rem; }
+.member-directory-layout { display:grid;gap:16px;min-width:0; }
+.member-invitations { position:relative; }
+.member-invitations h2 { padding-inline-end:46px; }
+.member-invite-compose summary,.member-access > summary {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:8px 12px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#142a3a;
+  color:var(--text);
+  font-weight:650;
+  cursor:pointer;
+  list-style:none;
+}
+:is(.member-invite-compose,.member-access) > summary::-webkit-details-marker { display:none; }
+:is(.member-invite-compose,.member-access) > summary:hover { border-color:var(--accent); }
+.member-invite-compose > summary {
+  position:absolute;
+  inset-block-start:clamp(20px,5vw,32px);
+  inset-inline-end:clamp(20px,5vw,32px);
+  width:40px;
+  color:var(--accent);
+  font-size:1.4rem;
+  line-height:1;
+}
+.member-invite-compose[open] > summary span { transform:rotate(45deg); }
+.member-invite-compose[open] { padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid var(--border); }
 .member-invitations .invite-filter { margin:0 0 16px;align-items:stretch; }
 .invite-filter label { flex-basis:100%; }
 .invite-filter select {
@@ -246,10 +272,16 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,sa
 .member-directory-header h2,.member-profile-summary h2{margin:0}
 .member-directory-action,.topic-author a,.membership-copy a{color:var(--blue)}
 .member-directory{list-style:none;margin:0;padding:0}
-.member-directory li{border-top:1px solid var(--border)}
-.member-directory li a,.member-profile-summary{display:flex;align-items:center;gap:14px;overflow-wrap:anywhere}
-.member-directory li a{padding:12px 0;color:var(--text);text-decoration:none}
-.member-directory li a:hover strong{text-decoration:underline}
+.member-directory li{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0 16px;border-top:1px solid var(--border)}
+.member-directory-person{flex:1;min-width:min(100%,14rem);padding:12px 0}
+.member-access{margin:8px 0 8px auto}
+.member-access[open]{flex-basis:100%;text-align:right}
+.member-access > summary{width:fit-content;margin-inline-start:auto;font-size:.875rem}
+.member-access form{justify-content:flex-end}
+.member-access .member-remove summary{margin-inline-start:auto}
+.member-directory-person,.member-profile-summary{display:flex;align-items:center;gap:14px;overflow-wrap:anywhere}
+a.member-directory-person{color:var(--text);text-decoration:none}
+a.member-directory-person:hover strong{text-decoration:underline}
 .member-avatar{display:block;flex:none;width:56px;height:56px;border-radius:50%;object-fit:cover}
 .member-avatar-initial{display:grid;place-items:center;background:#142a3a;color:var(--blue);font-weight:750}
 .member-directory-meta{display:block;color:var(--muted);font-size:.9rem}

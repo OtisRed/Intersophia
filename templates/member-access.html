@@ -1,40 +1,22 @@
-<section class="membership-card member-content" aria-labelledby="access-title">
-  <h2 id="access-title" data-annotation-target="access-title">Dostęp do panelu</h2>
-  <p class="membership-copy"><a href="{{ url_for('panel', widok='czlonkowie') }}">Wróć do członków</a></p>
-  <nav class="member-account-filter" aria-label="Lista członków" data-annotation-target="member-filter">
-    <a href="{{ url_for('panel', widok='dostep') }}" data-annotation-target="member-filter-active"{% if not removed_view %} aria-current="page"{% endif %}>Aktywni</a>
-    <a href="{{ url_for('panel', widok='dostep', czlonkowie='usunieci') }}" data-annotation-target="member-filter-removed"{% if removed_view %} aria-current="page"{% endif %}>Usunięci</a>
-  </nav>
-  <ul class="member-accounts" data-annotation-private>
-    {% for account in accounts %}
-    <li>
-      <strong>{{ account.name or account.email }}</strong>
-      {% if account.name %}<span>{{ account.email }}</span>{% endif %}
-      <p>{{ role_labels[account.role] }}{% if account.revoked_at is not none %} · Dostęp odebrany{% endif %}</p>
-      {% if account.role != "guardian" and account.revoked_at is none %}
-      <form method="post" action="{{ url_for('panel', widok='dostep') }}">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <input type="hidden" name="user_id" value="{{ account.id }}">
-        {% if account.role == "board" %}
-        <button type="submit" name="action" value="remove-board">Odbierz rolę Zarządu</button>
-        {% else %}
-        <button type="submit" name="action" value="grant-board">Nadaj rolę Zarządu</button>
-        {% endif %}
-      </form>
-      <details class="member-remove">
-        <summary>Usuń członka</summary>
-        <p>Ta osoba utraci dostęp do panelu, także w otwartej sesji.</p>
-        <form method="post" action="{{ url_for('panel', widok='dostep') }}">
-          <input type="hidden" name="csrf" value="{{ csrf }}">
-          <input type="hidden" name="user_id" value="{{ account.id }}">
-          <button type="submit" name="action" value="revoke-access"
-                  aria-label="Potwierdź usunięcie członka {{ account.email }}">Potwierdź usunięcie</button>
-        </form>
-      </details>
-      {% endif %}
-    </li>
+<details class="member-access">
+  <summary aria-label="Zarządzaj dostępem — {{ member.name or 'Członek SKN' }}">Zarządzaj dostępem</summary>
+  <form method="post" action="{{ url_for('panel', widok='czlonkowie') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="user_id" value="{{ member.id }}">
+    {% if member.role == "board" %}
+    <button type="submit" name="action" value="remove-board">Odbierz rolę Zarządu</button>
     {% else %}
-    <li>Brak {{ "usuniętych" if removed_view else "aktywnych" }} członków.</li>
-    {% endfor %}
-  </ul>
-</section>
+    <button type="submit" name="action" value="grant-board">Nadaj rolę Zarządu</button>
+    {% endif %}
+  </form>
+  <details class="member-remove">
+    <summary>Usuń członka</summary>
+    <p>Ta osoba utraci dostęp do panelu, także w otwartej sesji.</p>
+    <form method="post" action="{{ url_for('panel', widok='czlonkowie') }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="user_id" value="{{ member.id }}">
+      <button type="submit" name="action" value="revoke-access"
+              aria-label="Potwierdź usunięcie członka {{ member.name or 'Członek SKN' }}">Potwierdź usunięcie</button>
+    </form>
+  </details>
+</details>

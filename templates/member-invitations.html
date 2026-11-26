@@ -1,6 +1,30 @@
-<section class="member-invitations" aria-labelledby="invitations-title">
-  <h3 id="invitations-title" data-annotation-target="invitation-list">{{ "Wszystkie zaproszenia" if show_invitation_issuers else "Moje zaproszenia" }}</h3>
-  <form method="get" action="{{ url_for('panel') }}" class="invite-filter" data-annotation-target="invitation-filter">
+<section class="membership-card member-content member-invitations" aria-labelledby="invitations-title">
+  <h2 id="invitations-title" data-annotation-target="invitation-list">Wysłane zaproszenia</h2>
+  <details class="member-invite-compose"{% if error or invite_link %} open{% endif %}>
+    <summary aria-label="Dodaj zaproszenie" data-annotation-target="invite-title"><span aria-hidden="true">+</span></summary>
+    <form method="post" action="{{ url_for('panel', widok='czlonkowie', _anchor='invitations-title') }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="action" value="invite">
+      <label for="invite-email" data-annotation-target="invite-email-label">Adres Gmail</label>
+      <input id="invite-email" name="email" type="email" autocomplete="off" value="{{ invite_email }}"
+             placeholder="nazwa@gmail.com" maxlength="78" required{% if error %} aria-describedby="invite-error"{% endif %}>
+      {% if error %}<p class="membership-error" id="invite-error" role="alert">{{ error }}</p>{% endif %}
+      <button class="membership-action membership-send member-generate" type="submit"
+              data-annotation-target="invite-create">Utwórz link</button>
+    </form>
+    {% if invite_link %}
+    <div class="member-invite-result" data-annotation-private>
+      <label for="invite-link">Jednorazowy link</label>
+      <input type="url" id="invite-link" value="{{ invite_link }}" readonly>
+      <p class="membership-copy">Wyślij go ręcznie na podany adres. Link jest ważny przez 48 godzin.</p>
+      <button class="membership-action membership-google" id="copy-invite" type="button">Skopiuj link</button>
+      <p id="copy-result" role="status"></p>
+    </div>
+    <script src="/assets/js/member-invites.js" defer></script>
+    {% endif %}
+  </details>
+  <form method="get" action="{{ url_for('panel', _anchor='invitations-title') }}" class="invite-filter" data-annotation-target="invitation-filter">
+    <input type="hidden" name="widok" value="czlonkowie">
     <label for="invite-status" data-annotation-target="invite-status-label">Status zaproszeń</label>
     <select id="invite-status" name="status">
       {% for status, label in invitation_labels.items() %}
@@ -20,7 +44,7 @@
       <p>{{ "Wystawca: " ~ invite.issuer_email if invite.issuer_email else "Zaproszenie techniczne" }}</p>
       {% endif %}
       {% if invite.status == "active" %}
-      <form method="post" action="{{ url_for('panel', status=invitation_status) if invitation_status != 'active' else url_for('panel') }}">
+      <form method="post" action="{{ url_for('panel', widok='czlonkowie', status=invitation_status if invitation_status != 'active' else none, _anchor='invitations-title') }}">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <input type="hidden" name="invitation_id" value="{{ invite.digest }}">
         <button type="submit" name="action" value="revoke-invitation"
