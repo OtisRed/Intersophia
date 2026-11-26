@@ -526,6 +526,7 @@ def create_app(settings=None):
             "COALESCE(NULLIF(u.name,''),'Członek SKN') AS author,"
             "a.author_id=? AS mine FROM annotations a JOIN users u ON u.id=a.author_id "
             "WHERE (a.view=? OR (?='faq' AND a.view LIKE 'faq:%')) AND (NOT ? OR a.author_id=?) "
+            "AND NOT EXISTS (SELECT 1 FROM annotation_closures c WHERE c.annotation_id=a.id) "
             "ORDER BY a.id DESC",
             (user["id"], scope, scope, request.args.get("filtr") == "moje", user["id"]),
         )

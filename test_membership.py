@@ -245,6 +245,11 @@ class MembershipTests(unittest.TestCase):
         self.assertTrue(closed["closed"])
         self.assertTrue(closed["has_replies"])
         self.assertFalse(closed["can_close"])
+        annotations = "/panel?widok=adnotacje&zakres=faq"
+        for client in (author, reader):
+            items = client.get(annotations, base_url=self.base).get_json()["items"]
+            self.assertEqual([item["id"] for item in items], [2])
+        self.assertEqual(author.get(annotations + "&filtr=moje", base_url=self.base).get_json()["items"], [])
         self.assertEqual(change(reader, first, "reply", comment="Spóźniona",
                                 draft="00000000-0000-4000-8000-000000000003").status_code, 409)
         retry = change(reader, first, "reply", comment="Odpowiedź członka", draft=second_draft)

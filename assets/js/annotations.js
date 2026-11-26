@@ -306,6 +306,7 @@ async function start() {
   const api = '/panel?widok=adnotacje';
   const publication = annotationExport(library, session.csrf, api, positionContext);
   const scope = location.pathname === '/panel' ? `panel:${currentPanelView()}` : 'faq';
+  const closedThreads = new Set();
   let entries = [];
   let listAttempt = 0;
   let layoutFrame;
@@ -440,6 +441,17 @@ async function start() {
     return `${api}&watek=${id}`;
   }
 
+  function hideClosedThread(id) {
+    closedThreads.add(id);
+    if (selectedEntry?.id === id && library.open) {
+      library.close();
+      listButton.focus({ preventScroll: true });
+      listStatus.textContent = 'Dyskusja zamknięta.';
+    }
+    entries = entries.filter(entry => entry.id !== id);
+    renderEntries();
+  }
+
   function renderDiscussion(thread) {
     replies.replaceChildren(...thread.replies.map(reply => {
       const row = document.createElement('li');
@@ -471,7 +483,8 @@ async function start() {
       const response = await fetch(threadUrl(id), { cache: 'no-store' });
       if (!response.ok) throw new Error('Could not load the discussion');
       const thread = await response.json();
-      if (attempt === threadAttempt && selectedEntry?.id === id) renderDiscussion(thread);
+      if (thread.closed) hideClosedThread(id);
+      else if (attempt === threadAttempt && selectedEntry?.id === id) renderDiscussion(thread);
     } catch {
       if (attempt === threadAttempt && selectedEntry?.id === id) {
         threadStatus.textContent = 'Nie udało się wczytać dyskusji. Otwórz uwagę ponownie.';
@@ -501,13 +514,16 @@ async function start() {
     replySubmit.disabled = closeThread.disabled = true;
     try {
       const response = await fetch(threadUrl(id), { method: 'POST', body: form });
-      if (attempt !== threadAttempt || selectedEntry?.id !== id) return;
       if (response.status === 409) {
-        await loadDiscussion(id);
+        if (attempt === threadAttempt && selectedEntry?.id === id) await loadDiscussion(id);
         return;
       }
       if (!response.ok) throw new Error('Could not update the discussion');
       const thread = await response.json();
+      if (thread.closed) {
+        hideClosedThread(id);
+        return;
+      }
       if (attempt !== threadAttempt || selectedEntry?.id !== id) return;
       replyInput.value = '';
       replyDraft = null;
@@ -623,7 +639,7 @@ async function start() {
       if (!response.ok) throw new Error('Could not load annotations');
       const result = await response.json();
       if (attempt !== listAttempt) return;
-      entries = result.items;
+      entries = result.items.filter(entry => !closedThreads.has(entry.id));
       renderEntries();
     } catch {
       if (attempt !== listAttempt) return;
