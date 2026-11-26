@@ -595,6 +595,7 @@ class MembershipTests(unittest.TestCase):
         self.assertNotIn("Zarządzaj dostępem", page(author, directory))
         self.assertEqual(author.get("/panel?widok=dostep", base_url=self.base).status_code, 403)
         self.assertEqual(post(author, edit, action="save-profile", bio="x" * 1001).status_code, 400)
+        self.assertEqual(post(author, edit, action="save-profile", name="x" * 121).status_code, 400)
         self.assertEqual(post(guardian, person, action="save-profile", bio="Cudza edycja").status_code, 405)
         self.assertEqual(post(guardian, edit + "&czlonek=2", action="save-profile", bio="Cudza edycja").status_code, 400)
         self.assertEqual(post(author, edit, action="save-profile", csrf="wrong").status_code, 400)
@@ -602,9 +603,11 @@ class MembershipTests(unittest.TestCase):
         photo = io.BytesIO()
         Image.new("RGB", (800, 400), "green").save(photo, "PNG")
         photo.seek(0)
-        self.assertEqual(post(author, edit, action="save-profile", study="Ekonomia",
+        self.assertEqual(post(author, edit, action="save-profile", name="Alicja Nowak", study="Ekonomia",
                               interests="Filozofia", bio="Opis profilu", photo=(photo, "profil.png")).location, person)
         self.assertIn("Ekonomia", page(guardian, directory))
+        self.assertIn("Alicja Nowak", page(guardian, directory))
+        self.assertNotIn("Druga osoba", page(guardian, directory))
         self.assertIn("Opis profilu", page(guardian, person))
         self.assertNotIn("second@gmail.com", page(guardian, person))
         self.assertIn("second@gmail.com", page(author, person))
@@ -615,11 +618,13 @@ class MembershipTests(unittest.TestCase):
             self.assertEqual(profile_photo.size, (640, 320))
         self.assertEqual(post(author, edit, action="save-profile", study="Ekonomia", bio="Nowy opis").status_code, 303)
         self.assertEqual(author.get(photo_url, base_url=self.base).status_code, 200)
+        self.assertEqual(self.callback(name="Nick z Google").location, "/panel")
+        self.assertIn("Alicja Nowak", page(author, person))
 
         draft = re.search(r'name="draft" value="([^"]+)"', page(author, topics))[1]
         self.assertEqual(post(author, topics, action="create-topic", draft=draft, title="Temat z profilem",
                               description="Opis").status_code, 303)
-        self.assertIn('widok=profil&amp;czlonek=2">Druga osoba</a>', page(guardian, topics))
+        self.assertIn('widok=profil&amp;czlonek=2">Alicja Nowak</a>', page(guardian, topics))
         self.assertEqual(self.bootstrap("tester@gmail.com").exit_code, 0)
         self.assertIn("Zarządzaj dostępem", page(guardian, directory))
         self.assertIn("second@gmail.com", page(guardian, person))
@@ -627,12 +632,12 @@ class MembershipTests(unittest.TestCase):
         self.assertNotIn("Zarządzaj dostępem", page(author, directory))
         self.assertEqual(author.get("/panel?widok=dostep", base_url=self.base).status_code, 403)
         self.assertEqual(self.change_access(guardian, "revoke-access", target=2).status_code, 303)
-        self.assertNotIn("Druga osoba", page(guardian, directory))
+        self.assertNotIn("Alicja Nowak", page(guardian, directory))
         self.assertEqual(guardian.get(person, base_url=self.base).status_code, 404)
         self.assertEqual(guardian.get(photo_url, base_url=self.base).status_code, 404)
         self.assertEqual(author.get(edit, base_url=self.base).location, "/logowanie")
-        self.assertIn("Zgłasza Druga osoba", page(guardian, topics))
-        self.assertNotIn('widok=profil&amp;czlonek=2">Druga osoba</a>', page(guardian, topics))
+        self.assertIn("Zgłasza Alicja Nowak", page(guardian, topics))
+        self.assertNotIn('widok=profil&amp;czlonek=2">Alicja Nowak</a>', page(guardian, topics))
 
     def test_member_can_issue_invite_matching_one_gmail(self):
         self.member_ready()
